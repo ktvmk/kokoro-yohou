@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ココロ予報 デモ（研究 v0.7）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Opti:wght@400;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-0: #bfeaff; --bg-1: #87d6ff; --bg-2: #67c8ff;
+  --text: #f4f6ff; --muted: #c8cfdf;
+  --gold: #f6c565; --sky: #7ed6f9; --danger: #ef5350; --green: #a8e8c8;
+  --card: rgba(0, 0, 0, 0.32); --card-strong: rgba(0, 0, 0, 0.46);
+  --border: rgba(255, 255, 255, 0.22);
+  --shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+  --radius: 22px; --pill: 999px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: 'Zen Maru Gothic', 'Hiragino Sans', sans-serif;
+  color: var(--text); line-height: 1.6; min-height: 100vh;
+  background: linear-gradient(180deg, var(--bg-0), var(--bg-1), var(--bg-2));
+  background-attachment: fixed;
+}
+h1, h2, h3, h4 { font-family: 'Kaisei Opti', serif; margin: 0; color: var(--text); }
+button, input, select, textarea { font-family: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid rgba(246, 197, 101, 0.9);
+  outline-offset: 3px;
+}
+
+/* ヘッダー */
+.hero { padding: 0; }
+.hero-banner {
+  width: min(968px, 100%); margin: 0 auto 1rem;
+  padding: 1.2rem; border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.0)),
+    url('header-bg.png') center / cover no-repeat;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+  display: flex; flex-direction: column; align-items: center; gap: 0.8rem;
+}
+.logo-img {
+  width: min(420px, 80%); max-height: 240px;
+  object-fit: contain;
+  background: transparent; padding: 0;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.2));
+  animation: floatLogo 5.2s ease-in-out infinite;
+}
+@keyframes floatLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.app-title {
+  text-align: center; font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+  color: #fff; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  padding: 0.4rem 1rem;
+  background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px; margin: 0;
+}
+.hero-meta { text-align: center; color: #fff; font-size: 0.85rem; }
+.day-pill {
+  display: inline-block; padding: 4px 14px;
+  background: var(--gold); color: #151515;
+  font-weight: 700; border-radius: var(--pill); font-size: 0.85rem;
+}
+
+/* ナビ */
+.main-nav {
+  display: flex; justify-content: center; gap: 0.3rem; flex-wrap: nowrap;
+  max-width: 968px; margin: 0.5rem auto;
+  padding: 0.5rem; background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 18px;
+}
+.main-nav button {
+  background: rgba(255, 255, 255, 0.12); color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  padding: 0.42rem 0.7rem; border-radius: var(--pill); white-space: nowrap;
+  font-weight: 700; font-size: 0.76rem; cursor: pointer;
+}
+.main-nav button:hover, .btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+.main-nav button.active {
+  background: linear-gradient(135deg, var(--gold), #f9dc93);
+  color: #111; border-color: rgba(0, 0, 0, 0.15);
+}
+.main-nav .danger-btn {
+  background: rgba(239, 83, 80, 0.3); border-color: rgba(239, 83, 80, 0.6);
+}
+
+main {
+  max-width: 1000px; margin: 0 auto; padding: 1rem;
+  display: grid; gap: 1rem;
+}
+.page { display: none; }
+.page.active { display: grid; gap: 1rem; }
+
+/* カード */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.2rem 1.4rem;
+  box-shadow: var(--shadow);
+}
+.card-strong { background: var(--card-strong); }
+.card h2 { font-size: 1.2rem; margin-bottom: 0.4rem; }
+.card h3 { font-size: 1.05rem; margin: 0.8rem 0 0.4rem; color: var(--gold); }
+.eyebrow {
+  font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--sky); margin-bottom: 0.2rem;
+}
+.lead { color: var(--muted); font-size: 0.9rem; margin-bottom: 0.6rem; }
+
+/* ボタン */
+.btn {
+  background: linear-gradient(135deg, var(--gold), #f9dc93);
+  color: #151515; border: none; padding: 0.6rem 1.4rem;
+  border-radius: var(--pill); font-weight: 700; cursor: pointer;
+  box-shadow: 0 8px 16px rgba(246, 197, 101, 0.3);
+}
+.btn.secondary {
+  background: transparent; color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: none;
+}
+.btn.danger {
+  background: linear-gradient(135deg, #ef5350, #ff7770); color: #fff;
+  box-shadow: 0 8px 16px rgba(239, 83, 80, 0.3);
+}
+.btn.small { padding: 0.4rem 1rem; font-size: 0.85rem; }
+.btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+
+/* 入力 */
+input[type="number"], input[type="text"], input[type="email"], select, textarea {
+  background: rgba(0, 0, 0, 0.35); color: #fff;
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 0.5rem 0.7rem; font-size: 0.95rem; width: 100%;
+}
+textarea { min-height: 80px; resize: vertical; }
+label { font-weight: 600; }
+
+/* スライダー */
+.scale-row {
+  display: grid; grid-template-columns: 130px 1fr 40px;
+  gap: 0.6rem; align-items: center; margin: 0.4rem 0;
+}
+.scale-row .label { font-size: 0.85rem; }
+.scale-row .value { text-align: right; color: var(--gold); font-weight: 700; }
+input[type="range"] { width: 100%; accent-color: var(--gold); }
+
+/* スライダーに数直線（目盛り）- 絶対配置でスライダーつまみの位置と一致 */
+.slider-with-marks { display: flex; flex-direction: column; width: 100%; }
+.slider-with-marks .marks {
+  position: relative;
+  height: 1.4em;
+  margin: 0 8px; /* スライダーつまみの半径分オフセット（端の目盛りがつまみ位置と一致） */
+  font-size: 0.65rem; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.slider-with-marks .marks span {
+  position: absolute; top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  display: flex; flex-direction: column; align-items: center;
+}
+.slider-with-marks .marks span::after {
+  content: ""; display: block;
+  width: 1px; height: 4px; background: rgba(255,255,255,0.4);
+  margin-top: 1px;
+}
+.slider-with-marks .marks span.mid::after { background: var(--gold); height: 6px; }
+.slider-with-marks .marks span.mid { color: var(--gold); font-weight: 700; }
+.slider-with-marks input[type="range"] { margin-top: 0; }
+
+/* チェック */
+.radio-row { display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem; font-size: 0.85rem; }
+.radio-row label { font-weight: 500; }
+
+/* タイプ診断結果 */
+.diagnosis-headline {
+  background: var(--card-strong); padding: 1rem; border-radius: 16px;
+  text-align: center; margin-bottom: 0.8rem;
+}
+.diagnosis-headline h3 { color: #fff; font-size: 1.15rem; }
+.type-list { display: grid; gap: 0.5rem; }
+.type-card {
+  background: var(--card-strong); border: 1px solid var(--border);
+  border-radius: 14px; padding: 0.8rem 1rem;
+}
+.type-card.primary { border: 2px solid rgba(246, 197, 101, 0.85); }
+.type-card.secondary { border: 1.5px solid rgba(126, 214, 249, 0.7); }
+.type-card h4 { color: var(--gold); }
+.bar-chart { display: grid; gap: 0.4rem; margin-top: 0.5rem; }
+.bar-row { display: grid; grid-template-columns: 160px 1fr 50px; gap: 0.5rem; align-items: center; font-size: 0.85rem; }
+.bar-row.star .label { color: var(--gold); font-weight: 700; }
+.bar-track { height: 12px; background: rgba(255, 255, 255, 0.18); border-radius: 999px; position: relative; overflow: hidden; }
+.bar-mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1.5px; background: rgba(255, 255, 255, 0.55); z-index: 2; }
+.bar-fill { position: absolute; height: 100%; }
+.bar-fill.pos { left: 50%; background: linear-gradient(90deg, var(--sky), var(--gold)); }
+.bar-fill.neg { right: 50%; background: linear-gradient(270deg, #f57c00, var(--danger)); }
+.bar-val { text-align: right; color: var(--gold); font-weight: 700; }
+
+/* 提案 */
+.suggestion-card {
+  background: var(--card-strong); border: 1px solid var(--border);
+  border-radius: 16px; padding: 1rem;
+}
+.suggestion-tag {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  font-size: 0.75rem; font-weight: 700; margin-bottom: 0.5rem;
+}
+.tag-self { background: rgba(255, 255, 255, 0.35); color: #fff; }
+.tag-match { background: var(--sky); color: #003355; }
+.tag-extend { background: #c8a8ff; color: #2e1b5b; }
+.tag-flexible { background: var(--green); color: #1b4f3a; }
+.tag-rest { background: rgba(246, 197, 101, 0.3); color: #fdf3a0; }
+.tag-prep { background: rgba(255, 255, 255, 0.2); color: #fff; }
+
+/* メトリックカード */
+.metric-card {
+  background: var(--card-strong); border: 1px solid var(--border);
+  border-radius: 14px; padding: 0.7rem 1rem;
+  display: grid; grid-template-columns: 1fr auto; align-items: center;
+}
+
+.checklist {
+  display: grid; gap: 0.45rem;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--border);
+  border-radius: 14px; padding: 0.85rem;
+}
+.checklist label {
+  display: grid; grid-template-columns: auto 1fr; gap: 0.5rem;
+  align-items: start; font-size: 0.9rem; font-weight: 500;
+}
+.reminder-card {
+  background: rgba(246, 197, 101, 0.14);
+  border: 1px solid rgba(246, 197, 101, 0.45);
+  border-radius: 14px; padding: 0.8rem 1rem;
+}
+.data-chip {
+  display: inline-block; margin: 0.15rem 0.25rem 0.15rem 0;
+  padding: 0.25rem 0.55rem; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  font-size: 0.78rem;
+}
+.metric-card .v { font-size: 1.3rem; color: var(--gold); font-weight: 700; }
+
+/* 同意セクション */
+.consent-box {
+  background: rgba(0, 0, 0, 0.4); border-radius: 14px;
+  padding: 1rem; border: 1px solid var(--gold);
+}
+
+/* レスポンシブ */
+@media (max-width: 600px) {
+  .scale-row { grid-template-columns: 1fr; }
+  .scale-row .value { text-align: left; }
+  .bar-row { grid-template-columns: 110px 1fr 40px; font-size: 0.75rem; }
+  .main-nav { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; border-radius: 0; }
+  .main-nav button { flex: 0 0 auto; padding: 0.5rem 0.8rem; }
+  .hero-banner { border-radius: 0; }
+  main { padding: 0.75rem; }
+  .card { padding: 1rem; border-radius: 16px; }
+  .info-grid { grid-template-columns: 1fr; }
+  .metric-card .v { font-size: 1.1rem; }
+  #daily .card [style*="grid-template-columns:repeat(3"] { grid-template-columns: 1fr !important; }
+}
+.hidden { display: none !important; }
+.note { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.6rem; }
+.kbd { background: rgba(0, 0, 0, 0.4); padding: 1px 6px; border-radius: 4px; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-banner">
+    <img src="logo5.png" alt="ココロ予報ロゴ" class="logo-img">
+    <h1 class="app-title">天気を予報するように今の自分を予測する "ココロ予報"</h1>
+    <div class="hero-meta">
+      <span class="day-pill" id="dayPill">Day 1 / 15</span>
+      <span id="participantTag" style="margin-left:0.5rem; background:rgba(255,255,255,0.9); color:#1b3a5c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:700;">参加者ID: -</span>
+      <span id="phaseTag" style="margin-left:0.5rem; background:rgba(255,255,255,0.9); color:#1b3a5c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:700;">フェーズ: 準備</span>
+    </div>
+  </div>
+  <nav class="main-nav">
+    <button onclick="showPage('home')" class="active" data-page="home">今日のおすすめ</button>
+    <button onclick="showPage('about')" data-page="about">研究について</button>
+    <button onclick="showPage('consent')" data-page="consent">同意・参加者情報</button>
+    <button onclick="showPage('survey')" data-page="survey">事前アンケート</button>
+    <button onclick="showPage('daily')" data-page="daily">日次記録</button>
+    <button onclick="showPage('postSurvey')" data-page="postSurvey">事後アンケート</button>
+    <button onclick="showPage('result')" data-page="result">タイプ診断結果</button>
+    <button onclick="showPage('graphs')" data-page="graphs">振り返り</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- ========== ホーム ========== -->
+<section id="home" class="page active">
+<div class="card">
+<p class="eyebrow">TODAY</p>
+<h2 id="homeDate">本日の予報</h2>
+<p class="lead" id="homeMessage">今日の調子はいかがですか？気分とストレスを入力すると，今日のおすすめが表示されます。</p>
+
+<h3>いまの気分・ストレス</h3>
+<div class="reminder-card" id="reminderPanel">
+<b>本日のリマインド</b>
+<p class="note" id="reminderText" style="margin:0.25rem 0 0;">Day 2〜14は毎日17時に研究代表者からBCC一斉送信でリマインドします。</p>
+</div>
+<div class="scale-row"><span class="label">気分（−10〜+10）</span>
+<input type="range" min="-10" max="10" value="0" id="homeMood" oninput="document.getElementById('homeMoodV').textContent=this.value">
+<span class="value" id="homeMoodV">0</span></div>
+<div class="scale-row"><span class="label">ストレス度（0〜10）</span>
+<input type="range" min="0" max="10" value="5" id="homeStress" oninput="document.getElementById('homeStressV').textContent=this.value">
+<span class="value" id="homeStressV">5</span></div>
+<div class="scale-row"><span class="label">疲労感（0〜10）</span>
+<input type="range" min="0" max="10" value="5" id="homeFatigue" oninput="document.getElementById('homeFatigueV').textContent=this.value">
+<span class="value" id="homeFatigueV">5</span></div>
+<div class="scale-row"><span class="label">イライラ（0〜10）</span>
+<input type="range" min="0" max="10" value="5" id="homeAnger" oninput="document.getElementById('homeAngerV').textContent=this.value">
+<span class="value" id="homeAngerV">5</span></div>
+<div class="scale-row"><span class="label">不安（0〜10）</span>
+<input type="range" min="0" max="10" value="5" id="homeAnxiety" oninput="document.getElementById('homeAnxietyV').textContent=this.value">
+<span class="value" id="homeAnxietyV">5</span></div>
+<div class="scale-row"><span class="label">昨晩の睡眠（時間）</span>
+<input type="number" min="0" max="14" step="0.5" value="7" id="homeSleep" style="width:100px;">
+<span></span></div>
+
+<div class="btn-row">
+<button class="btn" onclick="generateSuggestion()">今日のおすすめを表示</button>
+<button class="btn secondary small" onclick="nextDay()">次のDayへ（テスト用）</button>
+</div>
+</div>
+
+<div class="card" id="suggestionCard" style="display:none;">
+<p class="eyebrow">SUGGESTION</p>
+<h2>今日のおすすめ</h2>
+<div id="suggestionContent"></div>
+<div class="btn-row">
+<button class="btn" onclick="showPage('daily')">この活動を実施・記録する</button>
+<button class="btn secondary" onclick="generateSuggestion()">別の提案を見る</button>
+</div>
+</div>
+</section>
+
+<!-- ========== 研究について ========== -->
+<section id="about" class="page">
+<div class="card">
+<p class="eyebrow">ABOUT THIS STUDY</p>
+<h2>本研究について</h2>
+<p class="lead">「ココロ予報」アプリを活用した日常ストレス対処に関する個人内比較研究（v0.7）</p>
+
+<h3>研究代表者・共同研究者</h3>
+<ul style="font-size:0.95rem;">
+<li>研究代表者：森 浩平（三重大学教育学部 特別支援教育講座 准教授）</li>
+<li>共同研究者：三重ジュニアドクター育成塾 第二期生</li>
+</ul>
+
+<h3>研究の流れ（15日間）</h3>
+<div style="overflow-x:auto;">
+<table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+<tr style="background:rgba(0,0,0,0.3);"><th style="padding:6px;">Day</th><th>フェーズ</th><th>内容</th></tr>
+<tr><td style="padding:4px 8px; text-align:center;">1</td><td>配布日</td><td>説明会・事前アンケート・研究セット受け取り</td></tr>
+<tr style="background:rgba(255,255,255,0.05);"><td style="padding:4px 8px; text-align:center;">2-4</td><td><span class="suggestion-tag tag-self">自由選択</span></td><td>16活動から自分で選ぶ</td></tr>
+<tr><td style="padding:4px 8px; text-align:center;">5-7</td><td><span class="suggestion-tag tag-match">好み一致</span> / <span class="suggestion-tag tag-extend">発見的</span></td><td>T1は好み一致，T2は発見的（ターム間で順序反転）</td></tr>
+<tr style="background:rgba(255,255,255,0.05);"><td style="padding:4px 8px; text-align:center;">8</td><td><span class="suggestion-tag tag-rest">中継日</span></td><td>リマインドメールのみ（提案も実施もなし）</td></tr>
+<tr><td style="padding:4px 8px; text-align:center;">9-11</td><td><span class="suggestion-tag tag-extend">発見的</span> / <span class="suggestion-tag tag-match">好み一致</span></td><td>T1は発見的，T2は好み一致（ターム間で順序反転）</td></tr>
+<tr style="background:rgba(255,255,255,0.05);"><td style="padding:4px 8px; text-align:center;">12-14</td><td><span class="suggestion-tag tag-flexible">状態依存</span></td><td>その日の気分・ストレスに応じて提案</td></tr>
+<tr><td style="padding:4px 8px; text-align:center;">15</td><td>回収日</td><td>事後アンケート・計測器返却</td></tr>
+</table>
+</div>
+<p class="note">※ Day 2-14 の毎日17時に研究代表者からリマインドメール（BCC一斉送信）が届きます。</p>
+
+<h3>Day 1 にお渡しする研究セット</h3>
+<div class="checklist" id="kitChecklist">
+<label><input type="checkbox" data-kit="coloring">塗り絵冊子（市販品）を受け取った</label>
+<label><input type="checkbox" data-kit="origami">折り紙（折り方ガイド付き市販パック）を受け取った</label>
+<label><input type="checkbox" data-kit="puzzle">ナンプレ冊子（市販品）を受け取った</label>
+<label><input type="checkbox" data-kit="diary">日記テンプレート A6 × 15枚を受け取った</label>
+<label><input type="checkbox" data-kit="goodThings">今日の良いことテンプレート A6 × 15枚を受け取った</label>
+<label><input type="checkbox" data-kit="cards">活動カード 16枚（A4・1活動1枚）を受け取った</label>
+<label><input type="checkbox" data-kit="bp">手首式血圧計を受け取った</label>
+</div>
+<p class="note">チェック状態はこの端末のlocalStorageに保存されます（Day 1の配布物確認用）。</p>
+<div class="info-grid">
+<div class="metric-card"><span>塗り絵冊子（市販品）</span><span class="v">📒</span></div>
+<div class="metric-card"><span>折り紙（市販パック）</span><span class="v">📒</span></div>
+<div class="metric-card"><span>ナンプレ冊子（市販品）</span><span class="v">📒</span></div>
+<div class="metric-card"><span>日記テンプレ A6 × 15枚</span><span class="v">📒</span></div>
+<div class="metric-card"><span>今日の良いことテンプレ A6 × 15枚</span><span class="v">📒</span></div>
+<div class="metric-card"><span>活動カード 16枚 (A4)</span><span class="v">📒</span></div>
+<div class="metric-card"><span>手首式血圧計</span><span class="v">🩺</span></div>
+</div>
+
+<h3>使用する尺度（標準尺度・改編なし）</h3>
+<ul style="font-size:0.9rem;">
+<li><b>PSS-10</b>（鈴木ら, 2007）：知覚されたストレス尺度 — 事前・事後</li>
+<li><b>WHO-5</b>（日本語版）：精神的健康度尺度 — 事前・事後</li>
+<li><b>PANAS短縮版日本語版</b>（佐藤・安田, 2001）：「今この瞬間」の感情 — 日次（活動前・直後）</li>
+</ul>
+
+<h3>4種類の提案方式</h3>
+<div class="info-grid">
+<div class="suggestion-card"><span class="suggestion-tag tag-self">自由選択</span><p style="margin:0; font-size:0.85rem;">アプリは提案せず，16活動から自分で選ぶ</p></div>
+<div class="suggestion-card"><span class="suggestion-tag tag-match">好み一致提案</span><p style="margin:0; font-size:0.85rem;">事前アンケート「好み度」上位から提案</p></div>
+<div class="suggestion-card"><span class="suggestion-tag tag-extend">発見的提案</span><p style="margin:0; font-size:0.85rem;">事前アンケート「好み度」下位から提案</p></div>
+<div class="suggestion-card"><span class="suggestion-tag tag-flexible">状態依存提案</span><p style="margin:0; font-size:0.85rem;">気分・ストレス・疲労・睡眠で判定したカテゴリから提案</p></div>
+</div>
+</div>
+</section>
+
+<!-- ========== 同意・参加者情報 ========== -->
+<section id="consent" class="page">
+<div class="card">
+<p class="eyebrow">CONSENT</p>
+<h2>同意・参加者情報</h2>
+<p class="lead">研究協力依頼書（書式①〜②）にご同意いただいたうえで，以下をご入力ください。</p>
+
+<div class="consent-box">
+<h3 style="margin-top:0;">確認事項</h3>
+<label style="display:block; margin:0.3rem 0;"><input type="checkbox" id="c1"> 研究目的・方法を理解しました</label>
+<label style="display:block; margin:0.3rem 0;"><input type="checkbox" id="c2"> 参加・不参加・途中辞退が自由意思であることを理解しました</label>
+<label style="display:block; margin:0.3rem 0;"><input type="checkbox" id="c3"> 個人情報の取り扱いについて理解しました（メールアドレスは毎日17時リマインドのみ使用）</label>
+<label style="display:block; margin:0.3rem 0;"><input type="checkbox" id="c4"> いつでも同意撤回ができることを理解しました（書式④同意撤回書）</label>
+<label style="display:block; margin:0.3rem 0;"><input type="checkbox" id="c5"> 標準尺度（PSS-10／WHO-5／PANAS短縮版）の使用について理解しました</label>
+</div>
+
+<h3>参加者情報</h3>
+<div class="scale-row"><span class="label">参加者ID（説明会で配布）</span><input type="text" id="participantId" placeholder="例：S001"><span></span></div>
+<div class="scale-row"><span class="label">実施ターム</span>
+<select id="participantTerm"><option value="T1">T1（Day 5-7 好み一致 → Day 9-11 発見的）</option><option value="T2">T2（Day 5-7 発見的 → Day 9-11 好み一致）</option></select>
+<span></span></div>
+<div class="scale-row"><span class="label">メールアドレス</span><input type="email" id="participantEmail" placeholder="例：xxx@example.com"><span></span></div>
+<p class="note">※ メールアドレスは毎日17時のリマインド送信（BCC一斉送信）のみに使用します。研究終了後（論文公表後5年）に廃棄します。</p>
+
+<div class="btn-row">
+<button class="btn" onclick="saveConsent()">同意して保存</button>
+</div>
+</div>
+</section>
+
+<!-- ========== 事前アンケート ========== -->
+<section id="survey" class="page">
+<div class="card">
+<p class="eyebrow">PRE SURVEY</p>
+<h2>事前アンケート（Day 1）</h2>
+<p class="lead">参加開始時に1回だけお答えいただきます。所要約20分。正解はありません。</p>
+
+<h3>基本情報</h3>
+<div class="scale-row"><span class="label">年齢</span><input type="number" id="pAge" min="18" max="30"><span></span></div>
+<div class="scale-row"><span class="label">性別</span>
+<select id="pGender"><option value="">選択</option><option>女性</option><option>男性</option><option>その他</option><option>回答しない</option></select>
+<span></span></div>
+<div class="scale-row"><span class="label">学年</span>
+<select id="pGrade"><option value="">選択</option><option>学部1年</option><option>学部2年</option><option>学部3年</option><option>学部4年</option></select>
+<span></span></div>
+
+<h3>PSS-10（知覚されたストレス尺度・鈴木ら 2007）</h3>
+<p class="lead">過去1か月の頻度を 0=全くない／4=とてもよくある でお答えください</p>
+<div id="pssContainer"></div>
+
+<h3>WHO-5（精神的健康度尺度）</h3>
+<p class="lead">過去2週間，0=全くなかった／5=いつも</p>
+<div id="whoContainer"></div>
+
+<h3>普段のストレス対処状態（A〜D 9項目）</h3>
+<p class="lead">1=そう思わない／5=そう思う</p>
+<div id="abcdContainer"></div>
+
+<h3>16活動の好み度・実施しやすさ（各−5〜+5）</h3>
+<div id="actContainer"></div>
+
+<h3>ストレス対処タイプ診断（Step 1・Step 3）各 −5〜+5</h3>
+<p class="lead">本デモでは研究計画書v0.7の判定用に Step 1（A〜F 6項目）と Step 3（G・H 4項目）を表示し，G/Hは2項目平均で−5〜+5に統一します。</p>
+<div id="typeContainer"></div>
+
+<h3>普段の対処（自由記述・任意）</h3>
+<div style="margin-bottom:0.6rem;"><label>あなたは普段ストレスを感じたとき、どんな方法で対処していますか。思いつくものを自由に。</label><textarea id="frBaseline"></textarea></div>
+
+<div class="btn-row">
+<button class="btn" onclick="submitSurvey()">回答を送信してタイプ診断結果を見る</button>
+</div>
+</div>
+</section>
+
+<!-- ========== タイプ診断結果 ========== -->
+<section id="result" class="page">
+<div class="card">
+<p class="eyebrow">YOUR TYPE</p>
+<h2>ストレス対処タイプ診断結果</h2>
+
+<div class="diagnosis-headline">
+<p style="color:var(--gold); font-size:0.8rem; letter-spacing:0.1em;">DIAGNOSED TYPE</p>
+<h3 id="diagHeadline">先に事前アンケートを完了してください</h3>
+</div>
+
+<div class="type-list" id="typeList"></div>
+
+<h3>8タイプ全スコア（−5〜+5 統一）</h3>
+<div class="bar-chart" id="barChart"></div>
+
+<p class="note">※ タイプ診断結果は表示専用です。実際の好み一致提案／発見的提案は「Part 8 好み度」スコアを用います。</p>
+
+<div class="btn-row">
+<button class="btn" onclick="showPage('home')">ホームへ戻る</button>
+</div>
+</div>
+</section>
+
+<!-- ========== 日次記録 ========== -->
+<section id="daily" class="page">
+<div class="card">
+<p class="eyebrow">DAILY RECORD</p>
+<h2>日次記録（今日の活動）</h2>
+<p class="lead">活動の前後にこの画面で記録します。所要5〜7分。</p>
+
+<h3>1. 活動前（活動直前）</h3>
+<div class="scale-row"><span class="label">気分（−10〜+10）</span><input type="range" min="-10" max="10" value="0" id="prMood" oninput="document.getElementById('prMoodV').textContent=this.value"><span class="value" id="prMoodV">0</span></div>
+<div class="scale-row"><span class="label">ストレス度（0〜10）</span><input type="range" min="0" max="10" value="5" id="prStress" oninput="document.getElementById('prStressV').textContent=this.value"><span class="value" id="prStressV">5</span></div>
+<div class="scale-row"><span class="label">疲労感（0〜10）</span><input type="range" min="0" max="10" value="5" id="prFatigue" oninput="document.getElementById('prFatigueV').textContent=this.value"><span class="value" id="prFatigueV">5</span></div>
+<div class="scale-row"><span class="label">イライラ（0〜10）</span><input type="range" min="0" max="10" value="5" id="prAnger" oninput="document.getElementById('prAngerV').textContent=this.value"><span class="value" id="prAngerV">5</span></div>
+<div class="scale-row"><span class="label">不安（0〜10）</span><input type="range" min="0" max="10" value="5" id="prAnx" oninput="document.getElementById('prAnxV').textContent=this.value"><span class="value" id="prAnxV">5</span></div>
+<div style="margin:0.5rem 0;">
+<label>主なストレス源（複数選択可）</label>
+<div class="radio-row">
+<label><input type="checkbox" name="stressSource" value="学業">学業</label>
+<label><input type="checkbox" name="stressSource" value="対人">対人</label>
+<label><input type="checkbox" name="stressSource" value="健康">健康</label>
+<label><input type="checkbox" name="stressSource" value="家族">家族</label>
+<label><input type="checkbox" name="stressSource" value="その他">その他</label>
+<label><input type="checkbox" name="stressSource" value="特になし">特になし</label>
+</div>
+</div>
+
+<h3>2. PANAS短縮版（活動前の感情）</h3>
+<p class="lead">1=ほとんどない／5=非常に強く（佐藤・安田 2001）</p>
+<div id="panasPreContainer"></div>
+
+<h3>3. 実施した活動</h3>
+<div class="scale-row"><span class="label">活動</span>
+<select id="actDoing"><option value="">選択</option></select><span></span></div>
+<div class="scale-row"><span class="label">実施時間（分）</span><input type="number" min="5" max="30" value="15" id="actMin"><span></span></div>
+
+<h3>4. 計測（直前・直後・5分後）</h3>
+<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:0.6rem;">
+<div class="card-strong" style="padding:0.6rem; border-radius:10px;">
+<p style="color:var(--gold); font-size:0.8rem;">直前</p>
+<input type="number" placeholder="脈拍" id="bpPreP" style="margin-bottom:4px;">
+<input type="number" placeholder="最高血圧" id="bpPreS" style="margin-bottom:4px;">
+<input type="number" placeholder="最低血圧" id="bpPreD">
+</div>
+<div class="card-strong" style="padding:0.6rem; border-radius:10px;">
+<p style="color:var(--gold); font-size:0.8rem;">直後</p>
+<input type="number" placeholder="脈拍" id="bpPostP" style="margin-bottom:4px;">
+<input type="number" placeholder="最高血圧" id="bpPostS" style="margin-bottom:4px;">
+<input type="number" placeholder="最低血圧" id="bpPostD">
+</div>
+<div class="card-strong" style="padding:0.6rem; border-radius:10px;">
+<p style="color:var(--gold); font-size:0.8rem;">5分後</p>
+<input type="number" placeholder="脈拍" id="bp5P" style="margin-bottom:4px;">
+<input type="number" placeholder="最高血圧" id="bp5S" style="margin-bottom:4px;">
+<input type="number" placeholder="最低血圧" id="bp5D">
+</div>
+</div>
+
+<h3>5. 活動直後の主観評価</h3>
+<div class="scale-row"><span class="label">気分（−10〜+10）</span><input type="range" min="-10" max="10" value="0" id="postMood" oninput="document.getElementById('postMoodV').textContent=this.value"><span class="value" id="postMoodV">0</span></div>
+<div class="scale-row"><span class="label">ストレス度（0〜10）</span><input type="range" min="0" max="10" value="5" id="postStress" oninput="document.getElementById('postStressV').textContent=this.value"><span class="value" id="postStressV">5</span></div>
+<div class="scale-row"><span class="label">効果実感（1〜5）</span><input type="range" min="1" max="5" value="3" id="postEff" oninput="document.getElementById('postEffV').textContent=this.value"><span class="value" id="postEffV">3</span></div>
+
+<h3>6. PANAS短縮版（活動直後）</h3>
+<div id="panasPostContainer"></div>
+
+<h3>7. 5分後評価</h3>
+<div class="scale-row"><span class="label">ストレス度（0〜10）</span><input type="range" min="0" max="10" value="5" id="m5Stress" oninput="document.getElementById('m5StressV').textContent=this.value"><span class="value" id="m5StressV">5</span></div>
+<div class="scale-row"><span class="label">心地よさ（1〜5）</span><input type="range" min="1" max="5" value="3" id="m5Pleasant" oninput="document.getElementById('m5PleasantV').textContent=this.value"><span class="value" id="m5PleasantV">3</span></div>
+
+<h3>8. 自由記述（任意）</h3>
+<textarea id="dailyMemo" placeholder="今日の活動について感じたこと・気づいたことを，思いつくまま自由に"></textarea>
+
+<div class="btn-row">
+<button class="btn" onclick="submitDaily()">記録を保存して次の日へ</button>
+</div>
+</div>
+</section>
+
+<!-- ========== 事後アンケート ========== -->
+<section id="postSurvey" class="page">
+<div class="card">
+<p class="eyebrow">POST SURVEY</p>
+<h2>事後アンケート（Day 15）</h2>
+<p class="lead">15日間の研究にご参加いただいた最終日（Day 15）にお答えいただくアンケートです。事前と同じ標準尺度（PSS-10／WHO-5／A〜D）＋アプリ利用感＋自由記述で構成されます。所要約15分。</p>
+
+<h3>PSS-10（事前と同一質問）</h3>
+<p class="lead">過去1か月の頻度を 0=全くない／4=とてもよくある でお答えください</p>
+<div id="postPssContainer"></div>
+
+<h3>WHO-5（事前と同一質問）</h3>
+<p class="lead">過去2週間，0=全くなかった／5=いつも</p>
+<div id="postWhoContainer"></div>
+
+<h3>普段のストレス対処状態（A〜D 9項目・事前と同一）</h3>
+<p class="lead">1=そう思わない／5=そう思う</p>
+<div id="postAbcdContainer"></div>
+
+<h3>アプリ「ココロ予報」の利用感</h3>
+<p class="lead">1=そう思わない／5=そう思う</p>
+<div id="appContainer"></div>
+
+<h3>自由記述（任意）</h3>
+<div style="margin-bottom:0.6rem;"><label>FR1. 4つの提案方式のうち、あなたに一番合っていた・役立ったのはどれですか。その理由も教えてください。（①自分で選ぶ ②好きな活動の提案 ③あまり選ばない活動の提案 ④その日の状態に合わせた提案）</label><textarea id="fr1"></textarea></div>
+<div style="margin-bottom:0.6rem;"><label>FR2. 15日間で、自分に「合う」と感じた活動と「合わない」と感じた活動があれば、それぞれ理由とともに教えてください。</label><textarea id="fr2"></textarea></div>
+<div style="margin-bottom:0.6rem;"><label>FR3. 普段あまり選ばない活動を試してみて、新しい発見や意外だったことはありましたか。（なければ「特になし」で構いません）</label><textarea id="fr3"></textarea></div>
+<div style="margin-bottom:0.6rem;"><label>FR4. アプリの使いやすさで、良かった点・改善してほしい点があれば教えてください。</label><textarea id="fr4"></textarea></div>
+
+<div class="btn-row">
+<button class="btn" onclick="submitPostSurvey()">事後アンケートを送信</button>
+</div>
+</div>
+</section>
+
+<!-- ========== 振り返り ========== -->
+<section id="graphs" class="page">
+<div class="card">
+<p class="eyebrow">REVIEW</p>
+<h2>記録の振り返り</h2>
+
+<div class="info-grid">
+<div class="metric-card"><span>実施日数</span><span class="v" id="mDays">0</span></div>
+<div class="metric-card"><span>平均気分変化</span><span class="v" id="mMoodDelta">+0.0</span></div>
+<div class="metric-card"><span>平均ストレス低下</span><span class="v" id="mStressDelta">−0.0</span></div>
+<div class="metric-card"><span>平均効果実感</span><span class="v" id="mEff">0.0</span></div>
+</div>
+
+<h3>PANAS（PA／NA）平均変化</h3>
+<div class="info-grid">
+<div class="metric-card"><span>PA 変化（前→直後）</span><span class="v" id="mPaDelta">+0.0</span></div>
+<div class="metric-card"><span>NA 変化（前→直後）</span><span class="v" id="mNaDelta">−0.0</span></div>
+</div>
+
+<h3>条件別効果実感の平均</h3>
+<div id="phaseChart" class="bar-chart"></div>
+
+<h3>これまでの記録</h3>
+<div id="recordList" style="display:grid; gap:0.5rem;"></div>
+</div>
+</section>
+
+<!-- ========== データ管理 ========== -->
+<section id="export" class="page">
+<div class="card">
+<p class="eyebrow">DATA MANAGEMENT</p>
+<h2>データのエクスポート・撤回</h2>
+<p class="lead">研究者用：データをエクスポートできます。参加者用：いつでもデータを撤回できます。</p>
+
+<h3>研究データ保管方針</h3>
+<p class="lead">アプリに入力したデータは，記録時に端末内へ即時保存するとともに，参加者ID（氏名・メールは送信しません）のみを付して暗号化通信で研究代表者が管理する三重大学Google Workspace上のスプレッドシートへ送信されます。研究代表者のみがアクセスし，定期的にダウンロードして暗号化のうえオフラインの外付けHDD（鍵付き保管庫）にアーカイブし，論文公表後5年で削除・物理破壊して廃棄します。</p>
+<div>
+<span class="data-chip">ID単位（個人情報非送信）</span><span class="data-chip">暗号化通信</span><span class="data-chip">三重大Google Workspace（本人のみ）</span><span class="data-chip">オフラインHDDにアーカイブ</span><span class="data-chip">論文公表後5年で破棄</span>
+</div>
+
+<h3>エクスポート（研究者用）</h3>
+<p class="lead">日次CSVには，PANAS PA/NA平均・合計，状態依存判定根拠，提案カテゴリ，ターム条件を含めます。</p>
+<div class="btn-row">
+<button class="btn" onclick="exportJSON()">JSON でダウンロード</button>
+<button class="btn" onclick="exportCSV()">日次記録を CSV でダウンロード</button>
+</div>
+
+<h3>リマインドメール送信シミュレーション</h3>
+<div class="reminder-card">
+<p style="margin:0;"><b>送信時刻</b>：Day 2〜14 毎日17:00　<b>宛先</b>：参加者全員へBCC一斉送信</p>
+<p class="note" id="reminderPreview" style="margin-bottom:0;">現在のDayに応じた文面を表示します。</p>
+<button class="btn secondary small" onclick="showReminderPreview()">文面を更新</button>
+</div>
+
+<h3>データ撤回（参加者用）</h3>
+<p class="lead">本研究への参加・データの取扱いを撤回したい場合は，以下のいずれかをご選択ください。あわせて書式④「同意撤回書」を研究代表者へご提出ください。</p>
+<div class="btn-row">
+<button class="btn danger" onclick="withdrawData('A')">A：参加拒否（全データ削除）</button>
+<button class="btn danger" onclick="withdrawData('B')">B：一部撤回（特定の日のデータ削除）</button>
+<button class="btn danger" onclick="withdrawData('C')">C：全面撤回（全データ削除＋以降参加なし）</button>
+</div>
+<p class="note">撤回されたことによる不利益はありません。研究代表者：森 浩平／kmori.edu@mie-u.ac.jp</p>
+
+<h3 style="color:var(--danger); margin-top:1.5rem;">⚠️ 全リセット（テスト用）</h3>
+<div class="btn-row">
+<button class="btn danger" onclick="resetAll()">全データを削除（確認あり）</button>
+</div>
+</div>
+</section>
+
+</main>
+
+<script>
+// ============================================================
+// データ
+// ============================================================
+const ACTIVITIES = [
+  {code:'A1', name:'上半身ストレッチ', category:'A'},
+  {code:'A2', name:'床ヨガ', category:'A'},
+  {code:'B1', name:'温かい飲み物', category:'B'},
+  {code:'B2', name:'腹式呼吸', category:'B'},
+  {code:'C1', name:'ナンプレ（ナンバープレース）', category:'C'},
+  {code:'C2', name:'読書', category:'C'},
+  {code:'D1', name:'家族との会話', category:'D'},
+  {code:'D2', name:'親しい人と連絡を取る', category:'D'},
+  {code:'E1', name:'ぬり絵', category:'E'},
+  {code:'E2', name:'折り紙', category:'E'},
+  {code:'F1', name:'デスク周りの整理', category:'F'},
+  {code:'F2', name:'拭き掃除', category:'F'},
+  {code:'G1', name:'短い日記を書く', category:'G'},
+  {code:'G2', name:'今日あった良いことを書く（3つ）', category:'G'},
+  {code:'H1', name:'窓の外を眺める', category:'H'},
+  {code:'H2', name:'ぼーっと過ごす', category:'H'},
+];
+
+const CATEGORIES = {
+  A: '運動志向', B: '感覚リラックス志向', C: '思考集中志向', D: '交流志向',
+  E: '創造志向', F: '環境整理志向', G: '内省志向', H: 'デジタル回避志向'
+};
+
+const PSS10 = [
+  '思いがけないことが起こって動揺したこと',
+  '大切なことを自分でコントロールできないと感じたこと',
+  '「神経質になっている」「ストレスを感じている」と感じたこと',
+  '自分の身の回りの問題に対処する力に自信を持てたこと（逆転）',
+  '物事が自分の思い通りに進んでいると感じたこと（逆転）',
+  'やるべきことすべてに対処できないと感じたこと',
+  '自分の生活のいらだちを抑えることができたこと（逆転）',
+  '自分の状況をうまく取りまわしていると感じたこと（逆転）',
+  'コントロールできない出来事に怒りを感じたこと',
+  '困難が山積みで乗り越えられないと感じたこと',
+];
+const WHO5 = [
+  '明るく、楽しい気分で過ごした',
+  '落ち着いた、リラックスした気分で過ごした',
+  '意欲的で、活動的に過ごした',
+  'ぐっすりと休め、気持ちよくめざめた',
+  '日常生活の中に、興味のあることがたくさんあった',
+];
+const ABCD = [
+  {id:'A1', q:'A1. 最近1週間、ストレスを強く感じている'},
+  {id:'A2', q:'A2. 最近1週間の精神的健康は良好だ'},
+  {id:'A3', q:'A3. 最近1週間の身体的健康は良好だ'},
+  {id:'B1', q:'B1. 自分はストレス対処ができていると思う'},
+  {id:'B2', q:'B2. 自分に合ったストレス対処法を知っている'},
+  {id:'B3', q:'B3. ストレスが高まったとき何をすればよいか分かる'},
+  {id:'C1', q:'C1. 自分の心と体の状態に気づける'},
+  {id:'C2', q:'C2. 自分のストレス対処の効果を判断できる'},
+  {id:'D1', q:'D1. 普段使うストレス対処法のバリエーションが多い'},
+];
+const PANAS = [
+  {id:'PA1', name:'活発な', type:'PA'},
+  {id:'PA2', name:'興奮した', type:'PA'},
+  {id:'PA3', name:'強気な', type:'PA'},
+  {id:'PA4', name:'鋭気のある', type:'PA'},
+  {id:'PA5', name:'誇らしい', type:'PA'},
+  {id:'NA1', name:'うろたえた', type:'NA'},
+  {id:'NA2', name:'苦悩した', type:'NA'},
+  {id:'NA3', name:'神経質な', type:'NA'},
+  {id:'NA4', name:'ぴりぴりした', type:'NA'},
+  {id:'NA5', name:'おびえた', type:'NA'},
+];
+const TYPE_STEP1 = [
+  {id:'tA', cat:'A', q:'A 運動志向：体を動かすことでスッキリする'},
+  {id:'tB', cat:'B', q:'B 感覚リラックス：静かな心地よさでリラックスする'},
+  {id:'tC', cat:'C', q:'C 思考集中：考えに没頭することで気が紛れる'},
+  {id:'tD', cat:'D', q:'D 交流志向：誰かと話すことで気持ちが楽になる'},
+  {id:'tE', cat:'E', q:'E 創造志向：何かを作る・表現することでスッキリする'},
+  {id:'tF', cat:'F', q:'F 環境整理：周りを整えることで落ち着く'},
+];
+const TYPE_STEP3 = [
+  {id:'tG1', cat:'G', q:'G1 内省志向：自分の内面を見つめることで整理がつく'},
+  {id:'tG2', cat:'G', q:'G2 内省深度：自分の感情を深く掘り下げるのが好き'},
+  {id:'tH1', cat:'H', q:'H1 デジタル回避：スマホ・PCから離れることでリラックス'},
+  {id:'tH2', cat:'H', q:'H2 自然志向：自然や植物・空を眺めることで落ち着く'},
+];
+
+// ============================================================
+// 状態管理
+// ============================================================
+let state = JSON.parse(localStorage.getItem('kokoroDemo') || '{}');
+if (!state.day) state.day = 1;
+if (!state.records) state.records = [];
+if (!state.schemaVersion) state.schemaVersion = 'codex-20260527-v1';
+
+function saveState() {
+  state.schemaVersion = 'codex-20260527-v1';
+  state.updatedAt = new Date().toISOString();
+  localStorage.setItem('kokoroDemo', JSON.stringify(state));
+}
+
+// ============================================================
+// ナビゲーション
+// ============================================================
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.main-nav button').forEach(b => b.classList.remove('active'));
+  const tgt = document.querySelector(`.main-nav button[data-page="${id}"]`);
+  if (tgt) tgt.classList.add('active');
+  if (id === 'graphs') showGraphs();
+  window.scrollTo({top: 0, behavior:'smooth'});
+}
+
+function resetAll() {
+  if (!confirm('全データをリセットしますか？')) return;
+  localStorage.removeItem('kokoroDemo');
+  state = {day: 1, records: []};
+  location.reload();
+}
+
+function nextDay() {
+  state.day = Math.min(15, state.day + 1);
+  saveState();
+  updateDayPill();
+  alert(`Day ${state.day} に進みました（フェーズ: ${PHASE_LABEL[getCurrentPhase(state.day)]}）`);
+}
+
+// ============================================================
+// 同意・参加者情報
+// ============================================================
+function saveConsent() {
+  const checks = ['c1','c2','c3','c4','c5'].map(id => document.getElementById(id).checked);
+  if (!checks.every(Boolean)) {
+    alert('すべての確認項目にチェックを入れてください。');
+    return;
+  }
+  const pid = document.getElementById('participantId').value;
+  const term = document.getElementById('participantTerm').value || 'T1';
+  const email = document.getElementById('participantEmail').value;
+  if (!pid) { alert('参加者IDを入力してください。'); return; }
+  state.consent = { pid, term, email, date: new Date().toISOString() };
+  saveState();
+  updateDayPill();
+  alert('同意・参加者情報を保存しました。事前アンケートへ進んでください。');
+  showPage('survey');
+}
+
+// ============================================================
+// UI生成
+// ============================================================
+function gen5pt(name) {
+  return '<div class="radio-row">' + [0,1,2,3,4].map(v => `<label><input type="radio" name="${name}" value="${v}">${v}</label>`).join('') + '</div>';
+}
+function gen6pt(name) {
+  return '<div class="radio-row">' + [0,1,2,3,4,5].map(v => `<label><input type="radio" name="${name}" value="${v}">${v}</label>`).join('') + '</div>';
+}
+function gen5radio(name) {
+  return '<div class="radio-row">' + [1,2,3,4,5].map(v => `<label><input type="radio" name="${name}" value="${v}">${v}</label>`).join('') + '</div>';
+}
+function gen11slider(name) {
+  return `<input type="range" min="-5" max="5" value="0" id="${name}" oninput="document.getElementById('${name}_v').textContent=this.value"> <span id="${name}_v" style="color:var(--gold); font-weight:700;">0</span>`;
+}
+
+function initSurvey() {
+  let html = '';
+  PSS10.forEach((q, i) => { html += `<div style="margin:0.5rem 0;"><label>PSS${i+1}. ${q}</label>${gen5pt('pss'+(i+1))}</div>`; });
+  document.getElementById('pssContainer').innerHTML = html;
+
+  html = '';
+  WHO5.forEach((q, i) => { html += `<div style="margin:0.5rem 0;"><label>WHO${i+1}. ${q}</label>${gen6pt('who'+(i+1))}</div>`; });
+  document.getElementById('whoContainer').innerHTML = html;
+
+  html = '';
+  ABCD.forEach(a => { html += `<div style="margin:0.5rem 0;"><label>${a.q}</label>${gen5radio('abcd_'+a.id)}</div>`; });
+  document.getElementById('abcdContainer').innerHTML = html;
+
+  html = '';
+  ACTIVITIES.forEach(a => {
+    html += `<div style="margin:0.6rem 0; padding:0.5rem; background:rgba(0,0,0,0.18); border-radius:10px;">
+      <div style="font-weight:700; color:var(--gold); margin-bottom:4px;">${a.code} ${a.name}</div>
+      <div class="scale-row"><span class="label" style="font-size:0.85rem;">好み度（−5〜+5）</span>${gen11slider('like_'+a.code)}</div>
+      <div class="scale-row"><span class="label" style="font-size:0.85rem;">実施しやすさ（−5〜+5）</span>${gen11slider('feas_'+a.code)}</div>
+    </div>`;
+  });
+  document.getElementById('actContainer').innerHTML = html;
+
+  html = '<h4 style="color:var(--gold); margin-top:0.5rem;">Step 1（A〜F 各カテゴリへの志向性）</h4>';
+  TYPE_STEP1.forEach(t => { html += `<div class="scale-row"><span class="label" style="font-size:0.85rem;">${t.q}</span>${gen11slider(t.id)}</div>`; });
+  html += '<h4 style="color:var(--gold); margin-top:0.5rem;">Step 3（G・H 補正項目）</h4>';
+  TYPE_STEP3.forEach(t => { html += `<div class="scale-row"><span class="label" style="font-size:0.85rem;">${t.q}</span>${gen11slider(t.id)}</div>`; });
+  document.getElementById('typeContainer').innerHTML = html;
+
+  const sel = document.getElementById('actDoing');
+  ACTIVITIES.forEach(a => {
+    const o = document.createElement('option');
+    o.value = a.code; o.textContent = `${a.code} ${a.name}`;
+    sel.appendChild(o);
+  });
+
+  function panasHtml(suffix) {
+    let h = '';
+    PANAS.forEach(p => {
+      h += `<div style="display:grid; grid-template-columns:130px 1fr; gap:0.5rem; align-items:center; margin:0.2rem 0;">
+        <span style="font-size:0.85rem;">${p.id}. ${p.name}</span>${gen5radio('panas_'+suffix+'_'+p.id)}</div>`;
+    });
+    return h;
+  }
+  document.getElementById('panasPreContainer').innerHTML = panasHtml('pre');
+  document.getElementById('panasPostContainer').innerHTML = panasHtml('post');
+
+  // 事後アンケート（PSS-10 / WHO-5 / A〜D / アプリ利用感）
+  html = '';
+  PSS10.forEach((q, i) => { html += `<div style="margin:0.5rem 0;"><label>PSS${i+1}. ${q}</label>${gen5pt('postPss'+(i+1))}</div>`; });
+  document.getElementById('postPssContainer').innerHTML = html;
+
+  html = '';
+  WHO5.forEach((q, i) => { html += `<div style="margin:0.5rem 0;"><label>WHO${i+1}. ${q}</label>${gen6pt('postWho'+(i+1))}</div>`; });
+  document.getElementById('postWhoContainer').innerHTML = html;
+
+  html = '';
+  ABCD.forEach(a => { html += `<div style="margin:0.5rem 0;"><label>${a.q}</label>${gen5radio('postAbcd_'+a.id)}</div>`; });
+  document.getElementById('postAbcdContainer').innerHTML = html;
+
+  const APP_QS = [
+    'APP1. アプリは使いやすかった',
+    'APP2. 毎日の記録は負担ではなかった',
+    'APP3. アプリの提案は参考になった',
+    'APP4. 記録を続けることでストレスへの気づきが増えた',
+    'APP5. 自分のタイプに合った対処を知ることができた',
+    'APP6. 今後も継続して使いたい',
+  ];
+  html = '';
+  APP_QS.forEach((q, i) => { html += `<div style="margin:0.5rem 0;"><label>${q}</label>${gen5radio('app'+(i+1))}</div>`; });
+  document.getElementById('appContainer').innerHTML = html;
+}
+
+function submitPostSurvey() {
+  const collect = (prefix, n) => {
+    const out = {};
+    for (let i = 1; i <= n; i++) {
+      const el = document.querySelector(`input[name="${prefix}${i}"]:checked`);
+      out[prefix+i] = el ? parseInt(el.value) : null;
+    }
+    return out;
+  };
+  state.postSurvey = {
+    pss10: collect('postPss', 10),
+    who5: collect('postWho', 5),
+    abcd: ABCD.reduce((acc, a) => {
+      const el = document.querySelector(`input[name="postAbcd_${a.id}"]:checked`);
+      acc[a.id] = el ? parseInt(el.value) : null;
+      return acc;
+    }, {}),
+    app: collect('app', 6),
+    freeResponse: {
+      fr1: document.getElementById('fr1').value,
+      fr2: document.getElementById('fr2').value,
+      fr3: document.getElementById('fr3').value,
+      fr4: document.getElementById('fr4').value,
+    },
+    submittedAt: new Date().toISOString(),
+  };
+  saveState();
+  alert('事後アンケートを送信しました。15日間のご協力ありがとうございました。');
+  showPage('graphs');
+}
+
+// ============================================================
+// タイプ診断
+// ============================================================
+function calcType() {
+  // すべて -5〜+5 に統一。A〜Fは単項目，G・Hは2項目平均。
+  const scores = {A:0,B:0,C:0,D:0,E:0,F:0,G:0,H:0};
+  const counts = {A:0,B:0,C:0,D:0,E:0,F:0,G:0,H:0};
+  TYPE_STEP1.forEach(t => {
+    const el = document.getElementById(t.id);
+    if (el) { scores[t.cat] += parseInt(el.value || 0); counts[t.cat] += 1; }
+  });
+  TYPE_STEP3.forEach(t => {
+    const el = document.getElementById(t.id);
+    if (el) { scores[t.cat] += parseInt(el.value || 0); counts[t.cat] += 1; }
+  });
+  Object.keys(scores).forEach(cat => {
+    if (counts[cat] > 1) scores[cat] = Number((scores[cat] / counts[cat]).toFixed(2));
+  });
+  return scores;
+}
+
+function calcPreferences() {
+  const prefs = {};
+  ACTIVITIES.forEach(a => {
+    const el = document.getElementById('like_'+a.code);
+    const fe = document.getElementById('feas_'+a.code);
+    if (el && fe) prefs[a.code] = { like: parseInt(el.value || 0), feas: parseInt(fe.value || 0) };
+  });
+  return prefs;
+}
+
+function collectStandardScales() {
+  const collect = (prefix, n, max) => {
+    const out = {};
+    for (let i = 1; i <= n; i++) {
+      const el = document.querySelector(`input[name="${prefix}${i}"]:checked`);
+      out[prefix+i] = el ? parseInt(el.value) : null;
+    }
+    return out;
+  };
+  return {
+    pss10: collect('pss', 10, 4),
+    who5: collect('who', 5, 5),
+    abcd: ABCD.reduce((acc, a) => {
+      const el = document.querySelector(`input[name="abcd_${a.id}"]:checked`);
+      acc[a.id] = el ? parseInt(el.value) : null;
+      return acc;
+    }, {}),
+  };
+}
+
+function submitSurvey() {
+  state.survey = {
+    age: document.getElementById('pAge').value,
+    gender: document.getElementById('pGender').value,
+    grade: document.getElementById('pGrade').value,
+    types: calcType(),
+    prefs: calcPreferences(),
+    scales: collectStandardScales(),
+    submittedAt: new Date().toISOString(),
+  };
+  saveState();
+  showResultPage();
+  showPage('result');
+}
+
+function showResultPage() {
+  if (!state.survey) {
+    document.getElementById('diagHeadline').textContent = '先に事前アンケートを完了してください';
+    return;
+  }
+  const types = state.survey.types;
+  const sorted = Object.entries(types).sort((a,b) => b[1]-a[1]);
+  const primary = sorted[0];
+  const secondary = sorted[1];
+  document.getElementById('diagHeadline').textContent = `主タイプ：${primary[0]} ${CATEGORIES[primary[0]]}　／　副タイプ：${secondary[0]} ${CATEGORIES[secondary[0]]}`;
+
+  const primActs = ACTIVITIES.filter(a => a.category === primary[0]).map(a => `${a.code} ${a.name}`).join(' / ');
+  const secActs = ACTIVITIES.filter(a => a.category === secondary[0]).map(a => `${a.code} ${a.name}`).join(' / ');
+  document.getElementById('typeList').innerHTML = `
+    <div class="type-card primary">
+      <h4>主タイプ：${primary[0]} ${CATEGORIES[primary[0]]}（スコア ${primary[1] > 0 ? '+' : ''}${primary[1]}）</h4>
+      <p>あなたが最もしっくりくるカテゴリです。</p>
+      <p style="background:rgba(246,197,101,0.18); padding:0.4rem 0.6rem; border-radius:8px; font-size:0.9rem;"><b>おすすめ活動</b>：${primActs}</p>
+    </div>
+    <div class="type-card secondary">
+      <h4>副タイプ：${secondary[0]} ${CATEGORIES[secondary[0]]}（スコア ${secondary[1] > 0 ? '+' : ''}${secondary[1]}）</h4>
+      <p style="background:rgba(126,214,249,0.18); padding:0.4rem 0.6rem; border-radius:8px; font-size:0.9rem;"><b>おすすめ活動</b>：${secActs}</p>
+    </div>`;
+
+  let bars = '';
+  Object.entries(types).forEach(([cat, score]) => {
+    const star = (cat === primary[0]) ? ' ★主' : (cat === secondary[0]) ? ' ★副' : '';
+    const cls = star ? 'star' : '';
+    const w = Math.abs(score) * 10; // -5〜+5で50%幅
+    const fill = score >= 0 ? `<div class="bar-fill pos" style="width:${w}%"></div>` : `<div class="bar-fill neg" style="width:${w}%"></div>`;
+    bars += `<div class="bar-row ${cls}">
+      <span class="label">${cat} ${CATEGORIES[cat]}${star}</span>
+      <div class="bar-track"><div class="bar-mid"></div>${fill}</div>
+      <span class="bar-val">${score > 0 ? '+' : ''}${score}</span>
+    </div>`;
+  });
+  document.getElementById('barChart').innerHTML = bars;
+}
+
+// ============================================================
+// 提案ロジック（v0.7準拠）
+// ============================================================
+function getParticipantTerm() {
+  return (state.consent && state.consent.term) || 'T1';
+}
+
+function getCurrentPhase(day) {
+  const term = getParticipantTerm();
+  if (day === 1) return 'prep';
+  if (day >= 2 && day <= 4) return 'self';
+  if (day >= 5 && day <= 7) return term === 'T2' ? 'extend' : 'match';
+  if (day === 8) return 'rest';
+  if (day >= 9 && day <= 11) return term === 'T2' ? 'match' : 'extend';
+  if (day >= 12 && day <= 14) return 'flexible';
+  if (day === 15) return 'final';
+  return 'done';
+}
+
+const PHASE_LABEL = {
+  prep: '準備（事前アンケート）',
+  self: '自由選択',
+  match: '好み一致提案',
+  rest: '中継日',
+  extend: '発見的提案',
+  flexible: '状態依存提案',
+  final: '最終日（事後アンケート）',
+  done: '研究完了',
+};
+
+function generateSuggestion() {
+  if (!state.survey) {
+    state.survey = { prefs: {} };  // デモ：事前未回答でも本日のおすすめをサンプル表示
+  }
+  const term = getParticipantTerm();
+  const phase = getCurrentPhase(state.day);
+  const mood = parseInt(document.getElementById('homeMood').value);
+  const stress = parseInt(document.getElementById('homeStress').value);
+  const fatigue = parseInt(document.getElementById('homeFatigue').value);
+  const anger = parseInt(document.getElementById('homeAnger').value);
+  const anx = parseInt(document.getElementById('homeAnxiety').value);
+  const sleep = parseFloat(document.getElementById('homeSleep').value);
+
+  let suggestion = null;
+  const prefs = state.survey.prefs;
+  const sorted = Object.entries(prefs).sort((a,b) => b[1].like - a[1].like);
+
+  if (phase === 'self') {
+    suggestion = { tag: 'self', label: '自由選択', activity: null,
+      term, condition: 'self', reason: '今日は自由選択日です。16活動の中から自分が今日やりたいものを選んでください。' };
+  } else if (phase === 'match') {
+    const top5 = sorted.slice(0, 5);
+    const picked = top5[Math.floor(Math.random() * top5.length)];
+    const act = ACTIVITIES.find(a => a.code === picked[0]);
+    suggestion = { tag: 'match', label: '合うタイプ', activity: act,
+      term, condition: 'match', pickedFrom: top5.map(([code, v]) => ({code, like: v.like, feas: v.feas})),
+      reason: `あなたが好み ${picked[1].like >= 0 ? '+' : ''}${picked[1].like} と回答した活動の中から選びました。` };
+  } else if (phase === 'extend') {
+    const bot5 = sorted.slice(-5).filter(p => p[1].feas >= -2);
+    const picked = bot5[Math.floor(Math.random() * bot5.length)] || sorted[sorted.length-1];
+    const act = ACTIVITIES.find(a => a.code === picked[0]);
+    suggestion = { tag: 'extend', label: '発見タイプ', activity: act,
+      term, condition: 'extend', pickedFrom: bot5.map(([code, v]) => ({code, like: v.like, feas: v.feas})),
+      reason: `普段あまり選ばないタイプの活動です（好み ${picked[1].like >= 0 ? '+' : ''}${picked[1].like}／実施しやすさ ${picked[1].feas >= 0 ? '+' : ''}${picked[1].feas}）。新しい「発見」のために試してみませんか。` };
+  } else if (phase === 'flexible') {
+    // v0.7 状態依存ロジック（マトリクス＋優先ルール）
+    let cat, ruleNote, ruleCode;
+    if (sleep <= 4 || fatigue >= 8) {
+      cat = (Math.random() < 0.5) ? 'B' : 'H';
+      ruleCode = 'priority_sleep_fatigue';
+      ruleNote = '優先ルール：睡眠不足・疲労が高いため，休息系を優先しました。';
+    } else if (anger >= 8) {
+      cat = (Math.random() < 0.5) ? 'A' : 'F';
+      ruleCode = 'priority_anger';
+      ruleNote = '優先ルール：イライラが特に高いため，発散・達成を促す活動を選びました。';
+    } else if (anx >= 8) {
+      cat = (Math.random() < 0.5) ? 'G' : 'B';
+      ruleCode = 'priority_anxiety';
+      ruleNote = '優先ルール：不安が特に高いため，観察・鎮静を促す活動を選びました。';
+    } else if (stress >= 5 && mood <= 0) {
+      cat = (Math.random() < 0.5) ? 'C' : 'D';
+      ruleCode = 'matrix_high_stress_low_mood';
+      ruleNote = 'マトリクス：ストレス高×気分低 → 注意転換／社会的サポート';
+    } else if (stress >= 5 && mood > 0) {
+      cat = (Math.random() < 0.5) ? 'A' : 'B';
+      ruleCode = 'matrix_high_stress_high_mood';
+      ruleNote = 'マトリクス：ストレス高×気分高 → 活性化バランス';
+    } else if (mood > 0) {
+      cat = (Math.random() < 0.5) ? 'E' : 'F';
+      ruleCode = 'matrix_low_stress_high_mood';
+      ruleNote = 'マトリクス：ストレス低×気分高 → 創造性・達成感';
+    } else {
+      cat = (Math.random() < 0.5) ? 'G' : 'H';
+      ruleCode = 'matrix_low_stress_low_mood';
+      ruleNote = 'マトリクス：ストレス低×気分低 → 内省・休息';
+    }
+    const acts = ACTIVITIES.filter(a => a.category === cat);
+    const picked = acts[Math.floor(Math.random() * acts.length)];
+    suggestion = { tag: 'flexible', label: '状態にあわせた提案', activity: picked,
+      term, condition: 'flexible', category: cat, ruleCode,
+      stateInputs: { mood, stress, fatigue, anger, anxiety: anx, sleep },
+      reason: `気分 ${mood >= 0 ? '+' : ''}${mood} / ストレス ${stress} / 疲労 ${fatigue} / イライラ ${anger} / 不安 ${anx} / 睡眠 ${sleep}時間<br>→ <b>${ruleNote}</b><br>「${CATEGORIES[cat]}」カテゴリから提案。` };
+  } else if (phase === 'rest') {
+    suggestion = { tag: 'rest', label: '中継日', activity: null,
+      term, condition: 'rest', reason: 'Day 8 は研究の中継日です。本日は活動の実施・記録はお休みです。リマインドメールのみ送信されます。' };
+  } else if (phase === 'prep') {
+    let cat;
+    if (sleep <= 4 || fatigue >= 8) cat = (Math.random()<0.5)?'B':'H';
+    else if (anger >= 8) cat = (Math.random()<0.5)?'A':'F';
+    else if (anx >= 8) cat = (Math.random()<0.5)?'G':'B';
+    else if (stress >= 5 && mood <= 0) cat = (Math.random()<0.5)?'C':'D';
+    else if (stress >= 5 && mood > 0) cat = (Math.random()<0.5)?'A':'B';
+    else if (mood > 0) cat = (Math.random()<0.5)?'E':'F';
+    else cat = (Math.random()<0.5)?'G':'H';
+    const acts = ACTIVITIES.filter(a => a.category === cat);
+    const picked = acts[Math.floor(Math.random()*acts.length)];
+    suggestion = { tag: 'flexible', label: '本日のあなたへのおすすめ', activity: picked,
+      term, condition: 'demo', category: cat,
+      reason: `いまの状態（気分 ${mood>=0?'+':''}${mood} / ストレス ${stress} / 疲労 ${fatigue} / イライラ ${anger} / 不安 ${anx} / 睡眠 ${sleep}時間）に合わせて、「${CATEGORIES[cat]}」から <b>${picked.code} ${picked.name}</b> をおすすめします。<br><span style="opacity:0.75; font-size:0.85em;">※デモ表示です（本番ではDay 1は事前アンケートの日です）。</span>` };
+  } else {
+    suggestion = { tag: 'prep', label: PHASE_LABEL[phase], activity: null,
+      term, condition: phase, reason: '研究フェーズ：' + PHASE_LABEL[phase] };
+  }
+
+  document.getElementById('phaseTag').textContent = `フェーズ: ${PHASE_LABEL[phase]}`;
+  state.currentSuggestion = suggestion;
+  saveState();
+
+  document.getElementById('suggestionContent').innerHTML = `
+      <span class="suggestion-tag tag-${suggestion.tag}">${suggestion.label}</span>
+      ${suggestion.activity ? `<h3 style="color:#fff; margin:0.5rem 0 0;">${suggestion.activity.code} ${suggestion.activity.name}</h3>` : ''}
+      <p style="background:rgba(246,197,101,0.18); padding:0.6rem 0.8rem; border-radius:10px; font-size:0.9rem; margin-top:0.6rem; box-sizing:border-box; width:100%;"><b>提案理由</b><br>${suggestion.reason}</p>`;
+  document.getElementById('suggestionCard').style.display = 'block';
+  if (suggestion.activity) document.getElementById('actDoing').value = suggestion.activity.code;
+}
+
+// ============================================================
+// 日次記録保存
+// ============================================================
+function collectPanas(suffix) {
+  const out = {};
+  PANAS.forEach(p => {
+    const el = document.querySelector(`input[name="panas_${suffix}_${p.id}"]:checked`);
+    out[p.id] = el ? parseInt(el.value) : null;
+  });
+  return out;
+}
+
+function summarizePanas(panas) {
+  const pick = keys => keys.map(k => panas?.[k]).filter(v => v != null && !Number.isNaN(v));
+  const paVals = pick(['PA1','PA2','PA3','PA4','PA5']);
+  const naVals = pick(['NA1','NA2','NA3','NA4','NA5']);
+  const sum = vals => vals.reduce((a,b) => a + b, 0);
+  const mean = vals => vals.length ? sum(vals) / vals.length : null;
+  return {
+    pa_sum: paVals.length === 5 ? sum(paVals) : null,
+    na_sum: naVals.length === 5 ? sum(naVals) : null,
+    pa_avg: paVals.length === 5 ? mean(paVals) : null,
+    na_avg: naVals.length === 5 ? mean(naVals) : null,
+  };
+}
+
+function submitDaily() {
+  const sources = Array.from(document.querySelectorAll('input[name="stressSource"]:checked')).map(el => el.value);
+  const suggestion = state.currentSuggestion || null;
+  const rec = {
+    day: state.day,
+    date: new Date().toISOString().slice(0, 10),
+    phase: getCurrentPhase(state.day),
+    term: getParticipantTerm(),
+    suggestion: suggestion ? {
+      condition: suggestion.condition || getCurrentPhase(state.day),
+      activity: suggestion.activity ? suggestion.activity.code : null,
+      category: suggestion.category || (suggestion.activity ? suggestion.activity.category : null),
+      ruleCode: suggestion.ruleCode || null,
+      stateInputs: suggestion.stateInputs || null,
+      reasonText: (suggestion.reason || '').replace(/<[^>]+>/g, ' '),
+    } : null,
+    pre: {
+      mood: parseInt(document.getElementById('prMood').value),
+      stress: parseInt(document.getElementById('prStress').value),
+      fatigue: parseInt(document.getElementById('prFatigue').value),
+      anger: parseInt(document.getElementById('prAnger').value),
+      anxiety: parseInt(document.getElementById('prAnx').value),
+      stressSources: sources,
+    },
+    panas_pre: collectPanas('pre'),
+    activity: document.getElementById('actDoing').value,
+    minutes: parseInt(document.getElementById('actMin').value),
+    bp_pre: { pulse: document.getElementById('bpPreP').value, sys: document.getElementById('bpPreS').value, dia: document.getElementById('bpPreD').value },
+    bp_post: { pulse: document.getElementById('bpPostP').value, sys: document.getElementById('bpPostS').value, dia: document.getElementById('bpPostD').value },
+    bp_5min: { pulse: document.getElementById('bp5P').value, sys: document.getElementById('bp5S').value, dia: document.getElementById('bp5D').value },
+    post: { mood: parseInt(document.getElementById('postMood').value), stress: parseInt(document.getElementById('postStress').value), eff: parseInt(document.getElementById('postEff').value) },
+    panas_post: collectPanas('post'),
+    after5: { stress: parseInt(document.getElementById('m5Stress').value), pleasant: parseInt(document.getElementById('m5Pleasant').value) },
+  };
+  rec.panas_summary = {
+    pre: summarizePanas(rec.panas_pre),
+    post: summarizePanas(rec.panas_post),
+  };
+  rec.memo = document.getElementById('dailyMemo').value;
+  state.records.push(rec);
+  state.day = Math.min(15, state.day + 1);
+  saveState();
+  updateDayPill();
+  alert(`Day ${rec.day} の記録を保存しました。次の日へ進みます（現在 Day ${state.day}）`);
+  showPage('graphs');
+}
+
+// ============================================================
+// 振り返り
+// ============================================================
+function showGraphs() {
+  const recs = state.records;
+  document.getElementById('mDays').textContent = recs.length;
+  if (recs.length === 0) {
+    ['mMoodDelta','mStressDelta','mEff','mPaDelta','mNaDelta'].forEach(id => document.getElementById(id).textContent = '−');
+    document.getElementById('phaseChart').innerHTML = '<p class="note">まだ記録がありません。</p>';
+    document.getElementById('recordList').innerHTML = '';
+    return;
+  }
+  let moodDelta = 0, stressDelta = 0, effSum = 0, paDelta = 0, naDelta = 0, paCount = 0, naCount = 0;
+  recs.forEach(r => {
+    moodDelta += r.post.mood - r.pre.mood;
+    stressDelta += r.pre.stress - r.post.stress;
+    effSum += r.post.eff;
+    if (r.panas_pre && r.panas_post) {
+      ['PA1','PA2','PA3','PA4','PA5'].forEach(k => {
+        if (r.panas_pre[k] != null && r.panas_post[k] != null) {
+          paDelta += r.panas_post[k] - r.panas_pre[k]; paCount++;
+        }
+      });
+      ['NA1','NA2','NA3','NA4','NA5'].forEach(k => {
+        if (r.panas_pre[k] != null && r.panas_post[k] != null) {
+          naDelta += r.panas_post[k] - r.panas_pre[k]; naCount++;
+        }
+      });
+    }
+  });
+  moodDelta /= recs.length; stressDelta /= recs.length; effSum /= recs.length;
+  document.getElementById('mMoodDelta').textContent = (moodDelta >= 0 ? '+' : '') + moodDelta.toFixed(1);
+  document.getElementById('mStressDelta').textContent = (stressDelta >= 0 ? '−' : '+') + Math.abs(stressDelta).toFixed(1);
+  document.getElementById('mEff').textContent = effSum.toFixed(1);
+  document.getElementById('mPaDelta').textContent = paCount ? ((paDelta/paCount >= 0 ? '+' : '') + (paDelta/paCount).toFixed(2)) : '−';
+  document.getElementById('mNaDelta').textContent = naCount ? ((naDelta/naCount >= 0 ? '+' : '') + (naDelta/naCount).toFixed(2)) : '−';
+
+  const byPhase = {};
+  recs.forEach(r => { if (!byPhase[r.phase]) byPhase[r.phase] = []; byPhase[r.phase].push(r.post.eff); });
+  let html = '';
+  ['self','match','extend','flexible'].forEach(p => {
+    if (byPhase[p]) {
+      const avg = byPhase[p].reduce((a,b) => a+b, 0) / byPhase[p].length;
+      const w = avg * 18;
+      html += `<div class="bar-row">
+        <span class="label">${PHASE_LABEL[p]}（n=${byPhase[p].length}）</span>
+        <div class="bar-track" style="background:rgba(255,255,255,0.18);"><div class="bar-fill" style="left:0; background:linear-gradient(90deg, var(--sky), var(--gold)); width:${w}%"></div></div>
+        <span class="bar-val">${avg.toFixed(1)}</span>
+      </div>`;
+    }
+  });
+  document.getElementById('phaseChart').innerHTML = html || '<p class="note">まだ条件別の比較はできません。</p>';
+
+  let rec = '';
+  recs.slice().reverse().forEach(r => {
+    const act = ACTIVITIES.find(a => a.code === r.activity);
+    const moodChange = r.post.mood - r.pre.mood;
+    rec += `<div class="card-strong" style="padding:0.6rem 0.9rem; border-radius:12px; display:grid; grid-template-columns:60px 1fr auto; gap:0.5rem; align-items:center;">
+      <span style="color:var(--gold); font-weight:700;">Day ${r.day}</span>
+      <div>
+        <div style="font-weight:600;">${act ? act.code + ' ' + act.name : '-'}</div>
+        <div style="font-size:0.78rem; color:var(--muted);">${PHASE_LABEL[r.phase]} / 気分 ${moodChange >= 0 ? '+' : ''}${moodChange} / 効果 ${r.post.eff}/5</div>
+      </div>
+      <span style="font-size:0.75rem; color:var(--muted);">${r.date}</span>
+    </div>`;
+  });
+  document.getElementById('recordList').innerHTML = rec;
+}
+
+// ============================================================
+// データ管理（エクスポート・撤回）
+// ============================================================
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const pid = (state.consent && state.consent.pid) || 'NOID';
+  a.download = `kokoro_${pid}_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+function exportCSV() {
+  const recs = state.records;
+  if (recs.length === 0) { alert('まだ記録がありません。'); return; }
+  const fmt = v => v == null ? '' : (typeof v === 'number' ? v.toFixed(2) : v);
+  const csvCell = c => `"${String(c ?? '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+  const header = ['day','date','term','phase','condition','suggested_activity','suggested_category','rule_code','rule_state_inputs','rule_reason','activity','minutes',
+    'pre_mood','pre_stress','pre_fatigue','pre_anger','pre_anxiety',
+    'pre_stress_sources',
+    'bp_pre_pulse','bp_pre_sys','bp_pre_dia',
+    'bp_post_pulse','bp_post_sys','bp_post_dia',
+    'bp_5min_pulse','bp_5min_sys','bp_5min_dia',
+    'post_mood','post_stress','post_eff',
+    'after5_stress','after5_pleasant',
+    'panas_pre_PA_sum','panas_pre_NA_sum','panas_post_PA_sum','panas_post_NA_sum',
+    'panas_pre_PA_avg','panas_pre_NA_avg','panas_post_PA_avg','panas_post_NA_avg',
+    'panas_delta_PA_sum','panas_delta_NA_sum','panas_delta_PA_avg','panas_delta_NA_avg',
+    'memo'];
+  const rows = recs.map(r => {
+    const preSummary = r.panas_summary?.pre || summarizePanas(r.panas_pre);
+    const postSummary = r.panas_summary?.post || summarizePanas(r.panas_post);
+    const suggested = r.suggestion || {};
+    const stateInputs = suggested.stateInputs ? JSON.stringify(suggested.stateInputs) : '';
+    return [r.day, r.date, r.term || getParticipantTerm(), r.phase, suggested.condition || r.phase,
+      suggested.activity || '', suggested.category || '', suggested.ruleCode || '', stateInputs, suggested.reasonText || '',
+      r.activity, r.minutes,
+      r.pre.mood, r.pre.stress, r.pre.fatigue, r.pre.anger, r.pre.anxiety,
+      (r.pre.stressSources || []).join('|'),
+      r.bp_pre.pulse, r.bp_pre.sys, r.bp_pre.dia,
+      r.bp_post.pulse, r.bp_post.sys, r.bp_post.dia,
+      r.bp_5min.pulse, r.bp_5min.sys, r.bp_5min.dia,
+      r.post.mood, r.post.stress, r.post.eff,
+      r.after5.stress, r.after5.pleasant,
+      preSummary.pa_sum, preSummary.na_sum, postSummary.pa_sum, postSummary.na_sum,
+      fmt(preSummary.pa_avg), fmt(preSummary.na_avg), fmt(postSummary.pa_avg), fmt(postSummary.na_avg),
+      postSummary.pa_sum != null && preSummary.pa_sum != null ? postSummary.pa_sum - preSummary.pa_sum : '',
+      postSummary.na_sum != null && preSummary.na_sum != null ? postSummary.na_sum - preSummary.na_sum : '',
+      postSummary.pa_avg != null && preSummary.pa_avg != null ? fmt(postSummary.pa_avg - preSummary.pa_avg) : '',
+      postSummary.na_avg != null && preSummary.na_avg != null ? fmt(postSummary.na_avg - preSummary.na_avg) : '',
+      r.memo || ''];
+  });
+  const csv = [header, ...rows].map(r => r.map(csvCell).join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const pid = (state.consent && state.consent.pid) || 'NOID';
+  a.download = `kokoro_${pid}_daily_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function withdrawData(type) {
+  let msg;
+  if (type === 'A') msg = 'A：参加拒否（全データを削除）してよろしいですか？';
+  else if (type === 'B') msg = 'B：一部撤回として削除したいDay番号を入力してください。書式④（同意撤回書）でも研究代表者へ同じ内容を提出してください。';
+  else msg = 'C：全面撤回（全データを削除＋以降参加なし）してよろしいですか？';
+
+  if (type === 'B') {
+    const dayText = prompt(msg, String(state.day));
+    if (dayText == null) return;
+    const day = parseInt(dayText, 10);
+    if (!Number.isInteger(day) || day < 1 || day > 15) { alert('Day 1〜15の数字で入力してください。'); return; }
+    const before = state.records.length;
+    state.records = state.records.filter(r => r.day !== day);
+    if (!state.withdrawals) state.withdrawals = [];
+    state.withdrawals.push({ type, day, date: new Date().toISOString(), removedRecords: before - state.records.length });
+    saveState();
+    alert(`撤回区分Bを記録しました。Day ${day} の日次記録 ${before - state.records.length}件を削除しました。書式④（同意撤回書）も研究代表者にご提出ください。`);
+    showGraphs();
+    return;
+  }
+  if (!confirm(msg)) return;
+  if (!state.withdrawals) state.withdrawals = [];
+  state.withdrawals.push({ type, date: new Date().toISOString() });
+  state.withdrawn = { type, date: new Date().toISOString() };
+  if (type === 'A' || type === 'C') {
+    state.records = [];
+    state.survey = null;
+  }
+  saveState();
+  alert(`撤回区分${type}を記録しました。書式④（同意撤回書）も研究代表者にご提出ください。`);
+  location.reload();
+}
+
+// ============================================================
+// 起動
+// ============================================================
+function updateDayPill() {
+  document.getElementById('dayPill').textContent = `Day ${state.day} / 15`;
+  document.getElementById('phaseTag').textContent = `フェーズ: ${PHASE_LABEL[getCurrentPhase(state.day)]}`;
+  if (state.consent) {
+    document.getElementById('participantTag').textContent = `参加者ID: ${state.consent.pid} / ${getParticipantTerm()}`;
+  }
+  showReminderPreview();
+}
+
+function getReminderText(day = state.day) {
+  if (day >= 2 && day <= 14) {
+    const phase = PHASE_LABEL[getCurrentPhase(day)];
+    return `【ココロ予報リマインド】本日Day ${day}（${phase}）です。17:00〜22:00の間に，座位3分安静，直前計測，10〜20分の活動，直後・5分後計測，日次記録をお願いします。`;
+  }
+  if (day === 1) return 'Day 1は説明会・同意・事前アンケート・研究セット配布日です。リマインド一斉送信はDay 2から開始します。';
+  if (day === 15) return 'Day 15は事後アンケート・計測器回収日です。日次活動リマインドはDay 14で終了します。';
+  return '研究期間外です。';
+}
+
+function showReminderPreview() {
+  const text = getReminderText();
+  const reminderText = document.getElementById('reminderText');
+  const reminderPreview = document.getElementById('reminderPreview');
+  if (reminderText) reminderText.textContent = text;
+  if (reminderPreview) reminderPreview.innerHTML = `<span class="data-chip">BCC一斉送信</span><span class="data-chip">17:00</span><br>${text}`;
+}
+
+function initKitChecklist() {
+  if (!state.kitChecklist) state.kitChecklist = {};
+  document.querySelectorAll('#kitChecklist input[type="checkbox"]').forEach(input => {
+    input.checked = Boolean(state.kitChecklist[input.dataset.kit]);
+    input.addEventListener('change', () => {
+      state.kitChecklist[input.dataset.kit] = input.checked;
+      saveState();
+    });
+  });
+}
+
+function restoreConsentInputs() {
+  if (!state.consent) return;
+  const pid = document.getElementById('participantId');
+  const term = document.getElementById('participantTerm');
+  const email = document.getElementById('participantEmail');
+  if (pid) pid.value = state.consent.pid || '';
+  if (term) term.value = state.consent.term || 'T1';
+  if (email) email.value = state.consent.email || '';
+}
+
+// スライダーを数直線付きにラップ（絶対配置でスライダーつまみ位置と一致）
+function wrapSliderWithMarks(input) {
+  if (input.dataset.wrapped) return;
+  const min = parseInt(input.min);
+  const max = parseInt(input.max);
+  const span = max - min;
+  // 範囲に応じてマーク値を決定
+  let markValues;
+  if (span === 20) markValues = [-10, -5, 0, 5, 10];
+  else if (span === 10 && min === 0) markValues = [0, 2, 4, 6, 8, 10];
+  else if (span === 10 && min === -5) markValues = [-5, -3, -1, 1, 3, 5];
+  else if (span === 4) markValues = [1, 2, 3, 4, 5];
+  else {
+    markValues = [];
+    for (let i = 0; i <= 4; i++) markValues.push(min + (span * i / 4));
+  }
+
+  const marks = markValues.map(v => {
+    const percent = ((v - min) / span) * 100;
+    const display = v > 0 ? `+${v}` : `${v}`;
+    const isMid = (v === 0 && min < 0);
+    return `<span style="left: ${percent}%"${isMid ? ' class="mid"' : ''}>${display}</span>`;
+  });
+
+  const wrap = document.createElement('div');
+  wrap.className = 'slider-with-marks';
+  wrap.innerHTML = `<div class="marks">${marks.join('')}</div>`;
+  const parent = input.parentNode;
+  parent.insertBefore(wrap, input);
+  wrap.appendChild(input);
+  input.dataset.wrapped = '1';
+}
+
+function applySliderMarks() {
+  document.querySelectorAll('input[type="range"]').forEach(wrapSliderWithMarks);
+}
+
+initSurvey();
+initKitChecklist();
+restoreConsentInputs();
+updateDayPill();
+showResultPage();
+showGraphs();
+applySliderMarks();
+</script>
+
+</body>
+</html>
