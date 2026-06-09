@@ -1633,21 +1633,23 @@ async function postKind(kind, record) {
   return data;
 }
 
+// 入力完了ボタンで呼ばれる送信。ここだけ画面に状態を表示する。
 async function sendData(kind, record) {
   if (!record) return;
   setSyncStatus('sending');
-  try { await postKind(kind, record); await flushQueue(); setSyncStatus('ok'); }
+  try { await postKind(kind, record); await flushQueue(true); setSyncStatus('ok'); }
   catch (e) { enqueueKind(kind, record); setSyncStatus('pending'); console.warn('[sync] ' + kind + ' → キュー:', e.message); }
 }
 
-async function flushQueue() {
+// silent=true（自動再送）のときは画面に何も出さない。表示は入力完了ボタン時のみ。
+async function flushQueue(silent) {
   const q = _readQueue();
   if (!q.length) return;
-  setSyncStatus('sending');
+  if (!silent) setSyncStatus('sending');
   const rest = [];
   for (const it of q) { try { await postKind(it.kind, it.record); } catch (e) { rest.push(it); } }
   _writeQueue(rest);
-  setSyncStatus(rest.length ? 'pending' : 'ok');
+  if (!silent) setSyncStatus(rest.length ? 'pending' : 'ok');
 }
 
 // 送信状態を画面上部に表示（送信中／成功／未送信）
@@ -1705,15 +1707,15 @@ async function syncAll() {
   enqueueKind('survey_pre', flattenSurveyPre());
   enqueueKind('survey_post', flattenSurveyPost());
   (state.records || []).forEach(r => enqueueKind('daily', flattenRecord(r)));
-  await flushQueue();
+  await flushQueue(true);   // 起動時の回収はサイレント
 }
 
-window.addEventListener('online', flushQueue);
+window.addEventListener('online', () => flushQueue(true));
 window.addEventListener('load', () => setTimeout(syncAll, 1500));
-// 20秒ごとに未送信キューを自動再送（取りこぼし防止の保険）
-setInterval(() => { if (_readQueue().length) flushQueue(); }, 20000);
-// 画面を離れる/隠す直前にも再送を試みる
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushQueue(); });
+// 20秒ごとに未送信キューを自動再送（サイレント・取りこぼし防止の保険）
+setInterval(() => { if (_readQueue().length) flushQueue(true); }, 20000);
+// 画面を離れる/隠す直前にも再送を試みる（サイレント）
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushQueue(true); });
 
 async function fetchMyRecords() {
   const pid = (state.consent && state.consent.pid);
