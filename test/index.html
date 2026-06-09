@@ -412,6 +412,10 @@ input[type="range"] { width: 100%; accent-color: var(--gold); }
 <div class="suggestion-card"><span class="suggestion-tag tag-extend">発見的提案</span><p style="margin:0; font-size:0.85rem;">事前アンケート「好み度」下位から提案</p></div>
 <div class="suggestion-card"><span class="suggestion-tag tag-flexible">状態依存提案</span><p style="margin:0; font-size:0.85rem;">気分・ストレス・疲労・睡眠で判定したカテゴリから提案</p></div>
 </div>
+
+<div class="btn-row" style="margin-top:1.2rem;">
+<button class="btn" onclick="showPage('consent')">読み終えたら「同意・参加者情報」へ進む ▶</button>
+</div>
 </div>
 </section>
 
@@ -432,7 +436,7 @@ input[type="range"] { width: 100%; accent-color: var(--gold); }
 </div>
 
 <h3>参加者情報</h3>
-<div class="scale-row"><span class="label">参加者ID（説明会で配布）</span><input type="text" id="participantId" placeholder="例：S001"><span></span></div>
+<div class="scale-row"><span class="label">参加者ID（説明会で配布）</span><input type="text" id="participantId" placeholder="例：P01"><span></span></div>
 <div class="scale-row"><span class="label">実施ターム</span>
 <select id="participantTerm"><option value="T1">T1（Day 5-7 好み一致 → Day 9-11 発見的）</option><option value="T2">T2（Day 5-7 発見的 → Day 9-11 好み一致）</option></select>
 <span></span></div>
@@ -1704,6 +1708,9 @@ function renderMoodLine(mountId, records) {
 }
 
 showGraphs();   // 折れ線も初期描画
+
+// 初回アクセス（まだ参加者情報が未登録）なら「研究について」を自動で開く
+if (!state.consent || !state.consent.pid) { showPage('about'); }
 </script>
 
 </body>
