@@ -716,8 +716,8 @@ const ACTIVITIES = [
   {code:'A2', name:'床ヨガ', category:'A'},
   {code:'B1', name:'温かい飲み物', category:'B'},
   {code:'B2', name:'腹式呼吸', category:'B'},
-  {code:'C1', name:'ナンプレ（ナンバープレース）', category:'C'},
-  {code:'C2', name:'読書', category:'C'},
+  {code:'C1', name:'ナンプレ（数字を入れる数独パズル）', category:'C'},
+  {code:'C2', name:'読書（漫画も含む）', category:'C'},
   {code:'D1', name:'家族との会話', category:'D'},
   {code:'D2', name:'親しい人と連絡を取る', category:'D'},
   {code:'E1', name:'ぬり絵', category:'E'},
@@ -739,11 +739,11 @@ const PSS10 = [
   '思いがけないことが起こって動揺したこと',
   '大切なことを自分でコントロールできないと感じたこと',
   '「神経質になっている」「ストレスを感じている」と感じたこと',
-  '自分の身の回りの問題に対処する力に自信を持てたこと（逆転）',
-  '物事が自分の思い通りに進んでいると感じたこと（逆転）',
+  '自分の身の回りの問題に対処する力に自信を持てたこと',
+  '物事が自分の思い通りに進んでいると感じたこと',
   'やるべきことすべてに対処できないと感じたこと',
-  '自分の生活のいらだちを抑えることができたこと（逆転）',
-  '自分の状況をうまく取りまわしていると感じたこと（逆転）',
+  '自分の生活のいらだちを抑えることができたこと',
+  '自分の状況をうまく取りまわしていると感じたこと',
   'コントロールできない出来事に怒りを感じたこと',
   '困難が山積みで乗り越えられないと感じたこと',
 ];
@@ -848,6 +848,7 @@ function saveConsent() {
   if (!pid) { alert('参加者IDを入力してください。'); return; }
   state.consent = { pid, term, email, date: new Date().toISOString() };
   saveState();
+  sendData('consent', flattenConsent());   // ★同意の事実を記録（メールは送らない）
   updateDayPill();
   alert('同意・参加者情報を保存しました。事前アンケートへ進んでください。');
   showPage('survey');
@@ -856,30 +857,38 @@ function saveConsent() {
 // ============================================================
 // UI生成
 // ============================================================
-function gen5pt(name) {
-  return '<div class="radio-row">' + [0,1,2,3,4].map(v => `<label><input type="radio" name="${name}" value="${v}">${v}</label>`).join('') + '</div>';
+// 各尺度の選択肢ラベル（丸の下に意味を表示して回答しやすくする）
+const PSS_ANCHORS  = {0:'まったく<br>なかった', 1:'ほとんど<br>なかった', 2:'ときどき<br>あった', 3:'しばしば<br>あった', 4:'非常に<br>多かった'};
+const WHO_ANCHORS  = {0:'まったく<br>ない', 1:'ときどき', 2:'半分<br>以下の<br>時間', 3:'半分<br>以上の<br>時間', 4:'ほとんど<br>いつも', 5:'いつも'};
+const ABCD_ANCHORS = {1:'あてはまら<br>ない', 2:'あまり', 3:'どちらとも<br>いえない', 4:'やや', 5:'とても<br>あてはまる'};
+
+function _radio(name, values, anchors) {
+  anchors = anchors || {};
+  return '<div class="radio-row">' + values.map(v =>
+    `<label style="display:flex; flex-direction:column; align-items:center; gap:2px;">` +
+      `<input type="radio" name="${name}" value="${v}">` +
+      `<span style="font-weight:700;">${v}</span>` +
+      (anchors[v] ? `<span style="font-size:0.66rem; color:var(--muted); line-height:1.15; text-align:center;">${anchors[v]}</span>` : '') +
+    `</label>`).join('') + '</div>';
 }
-function gen6pt(name) {
-  return '<div class="radio-row">' + [0,1,2,3,4,5].map(v => `<label><input type="radio" name="${name}" value="${v}">${v}</label>`).join('') + '</div>';
-}
-function gen5radio(name) {
-  return '<div class="radio-row">' + [1,2,3,4,5].map(v => `<label><input type="radio" name="${name}" value="${v}">${v}</label>`).join('') + '</div>';
-}
+function gen5pt(name, anchors)    { return _radio(name, [0,1,2,3,4], anchors); }
+function gen6pt(name, anchors)    { return _radio(name, [0,1,2,3,4,5], anchors); }
+function gen5radio(name, anchors) { return _radio(name, [1,2,3,4,5], anchors); }
 function gen11slider(name) {
   return `<input type="range" min="-5" max="5" value="0" id="${name}" oninput="document.getElementById('${name}_v').textContent=this.value"> <span id="${name}_v" style="color:var(--gold); font-weight:700;">0</span>`;
 }
 
 function initSurvey() {
   let html = '';
-  PSS10.forEach((q, i) => { html += `<div style="margin:0.5rem 0;"><label>PSS${i+1}. ${q}</label>${gen5pt('pss'+(i+1))}</div>`; });
+  PSS10.forEach((q, i) => { html += `<div style="margin:0.5rem 0;"><label>PSS${i+1}. ${q}</label>${gen5pt('pss'+(i+1), PSS_ANCHORS)}</div>`; });
   document.getElementById('pssContainer').innerHTML = html;
 
   html = '';
-  WHO5.forEach((q, i) => { html += `<div style="margin:0.5rem 0;"><label>WHO${i+1}. ${q}</label>${gen6pt('who'+(i+1))}</div>`; });
+  WHO5.forEach((q, i) => { html += `<div style="margin:0.5rem 0;"><label>WHO${i+1}. ${q}</label>${gen6pt('who'+(i+1), WHO_ANCHORS)}</div>`; });
   document.getElementById('whoContainer').innerHTML = html;
 
   html = '';
-  ABCD.forEach(a => { html += `<div style="margin:0.5rem 0;"><label>${a.q}</label>${gen5radio('abcd_'+a.id)}</div>`; });
+  ABCD.forEach(a => { html += `<div style="margin:0.5rem 0;"><label>${a.q}</label>${gen5radio('abcd_'+a.id, ABCD_ANCHORS)}</div>`; });
   document.getElementById('abcdContainer').innerHTML = html;
 
   html = '';
@@ -969,6 +978,7 @@ function submitPostSurvey() {
     submittedAt: new Date().toISOString(),
   };
   saveState();
+  sendData('survey_post', flattenSurveyPost());   // ★事後アンケートを記録
   alert('事後アンケートを送信しました。15日間のご協力ありがとうございました。');
   showPage('graphs');
 }
@@ -1035,6 +1045,7 @@ function submitSurvey() {
     submittedAt: new Date().toISOString(),
   };
   saveState();
+  sendData('survey_pre', flattenSurveyPre());   // ★事前アンケートを記録
   showResultPage();
   showPage('result');
 }
@@ -1282,7 +1293,7 @@ function submitDaily() {
   state.records.push(rec);
   state.day = Math.min(15, state.day + 1);
   saveState();
-  syncRecord(rec);              // ★準本番：サーバー（GAS→スプレッドシート）へ送信
+  sendData('daily', flattenRecord(rec));   // ★日次記録をサーバーへ送信
   updateDayPill();
   alert(`Day ${rec.day} の記録を保存しました。次の日へ進みます（現在 Day ${state.day}）`);
   showPage('graphs');
@@ -1602,35 +1613,84 @@ function flattenRecord(r) {
 
 function _readQueue()  { return JSON.parse(localStorage.getItem(SYNC.queueKey) || '[]'); }
 function _writeQueue(q){ localStorage.setItem(SYNC.queueKey, JSON.stringify(q)); }
-function enqueue(flat) { const q = _readQueue(); q.push(flat); _writeQueue(q); }
+function enqueueKind(kind, record) {
+  if (!record) return;
+  const key = kind + '|' + (record.clientRecordId || '');
+  const q = _readQueue().filter(x => (x.kind + '|' + ((x.record && x.record.clientRecordId) || '')) !== key);
+  q.push({ kind: kind, record: record });
+  _writeQueue(q);
+}
 
-async function postRecord(flat) {
+async function postKind(kind, record) {
   if (!SYNC.token) throw new Error('トークン未設定（配布URLから開いてください）');
   const res = await fetch(SYNC.endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ token: SYNC.token, record: flat }),
+    body: JSON.stringify({ token: SYNC.token, kind: kind, record: record }),
   });
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || 'server');
   return data;
 }
 
-async function syncRecord(r) {
-  const flat = flattenRecord(r);
-  try { await postRecord(flat); await flushQueue(); }
-  catch (e) { enqueue(flat); console.warn('[sync] 失敗→キュー:', e.message); }
+async function sendData(kind, record) {
+  if (!record) return;
+  try { await postKind(kind, record); await flushQueue(); }
+  catch (e) { enqueueKind(kind, record); console.warn('[sync] ' + kind + ' → キュー:', e.message); }
 }
 
 async function flushQueue() {
   const q = _readQueue();
   if (!q.length) return;
   const rest = [];
-  for (const flat of q) { try { await postRecord(flat); } catch (e) { rest.push(flat); } }
+  for (const it of q) { try { await postKind(it.kind, it.record); } catch (e) { rest.push(it); } }
   _writeQueue(rest);
 }
+
+/* 同意（メールアドレスは送らない＝倫理書類準拠。同意の事実のみ記録）*/
+function flattenConsent() {
+  const c = state.consent; if (!c || !c.pid) return null;
+  return { id: c.pid, term: c.term || '', clientRecordId: c.pid + '_consent',
+           agreedAt: c.date || '', consentComplete: 1 };
+}
+/* 事前アンケート */
+function flattenSurveyPre() {
+  const s = state.survey; if (!s) return null;
+  const pid = (state.consent && state.consent.pid) || 'NOID';
+  const out = { id: pid, term: (state.consent && state.consent.term) || '',
+                clientRecordId: pid + '_pre', clientSubmittedAt: s.submittedAt || '',
+                age: s.age || '', gender: s.gender || '', grade: s.grade || '' };
+  const t = s.types || {}; Object.keys(t).forEach(k => out['type_' + k] = t[k]);
+  const sc = s.scales || {};
+  ['pss10','who5','abcd'].forEach(g => { const o = sc[g] || {}; Object.keys(o).forEach(k => out[g + '_' + k] = o[k]); });
+  const pf = s.prefs || {}; Object.keys(pf).forEach(code => {
+    out['pref_' + code + '_like'] = pf[code].like; out['pref_' + code + '_feas'] = pf[code].feas; });
+  return out;
+}
+/* 事後アンケート */
+function flattenSurveyPost() {
+  const s = state.postSurvey; if (!s) return null;
+  const pid = (state.consent && state.consent.pid) || 'NOID';
+  const out = { id: pid, term: (state.consent && state.consent.term) || '',
+                clientRecordId: pid + '_post', clientSubmittedAt: s.submittedAt || '' };
+  ['pss10','who5','abcd','app'].forEach(g => { const o = s[g] || {}; Object.keys(o).forEach(k => out[g + '_' + k] = o[k]); });
+  const fr = s.freeResponse || {}; Object.keys(fr).forEach(k => out['free_' + k] = fr[k]);
+  return out;
+}
+
+/* 起動時：未送信の全データ（同意・事前・事後・日次）をまとめて回収。
+   サーバー側 clientRecordId で上書き(upsert)するため、毎回送っても重複しない */
+async function syncAll() {
+  if (!(state.consent && state.consent.pid)) return;
+  enqueueKind('consent', flattenConsent());
+  enqueueKind('survey_pre', flattenSurveyPre());
+  enqueueKind('survey_post', flattenSurveyPost());
+  (state.records || []).forEach(r => enqueueKind('daily', flattenRecord(r)));
+  await flushQueue();
+}
+
 window.addEventListener('online', flushQueue);
-window.addEventListener('load', () => setTimeout(flushQueue, 1500));
+window.addEventListener('load', () => setTimeout(syncAll, 1500));
 
 async function fetchMyRecords() {
   const pid = (state.consent && state.consent.pid);
