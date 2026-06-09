@@ -848,7 +848,7 @@ function saveConsent() {
   if (!pid) { alert('参加者IDを入力してください。'); return; }
   state.consent = { pid, term, email, date: new Date().toISOString() };
   saveState();
-  sendData('consent', flattenConsent());   // ★同意の事実を記録（メールは送らない）
+  sendData('consent', flattenConsent());   // ★同意＋メールを記録（氏名は収集しない・IDで管理）
   updateDayPill();
   alert('同意・参加者情報を保存しました。事前アンケートへ進んでください。');
   showPage('survey');
@@ -1647,11 +1647,11 @@ async function flushQueue() {
   _writeQueue(rest);
 }
 
-/* 同意（メールアドレスは送らない＝倫理書類準拠。同意の事実のみ記録）*/
+/* 同意（ID＋メールアドレスを記録。氏名は収集しない＝IDで管理。リマインド送信用にメールは収集）*/
 function flattenConsent() {
   const c = state.consent; if (!c || !c.pid) return null;
   return { id: c.pid, term: c.term || '', clientRecordId: c.pid + '_consent',
-           agreedAt: c.date || '', consentComplete: 1 };
+           email: c.email || '', agreedAt: c.date || '', consentComplete: 1 };
 }
 /* 事前アンケート */
 function flattenSurveyPre() {
