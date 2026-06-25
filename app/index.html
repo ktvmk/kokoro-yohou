@@ -335,16 +335,26 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 .slider-with-marks .marks span:first-child { transform: none; }
 .slider-with-marks .marks span:last-child  { transform: translateX(-100%); }
 
+/* 7件法の設問ブロック */
+.q7 { margin: 0.7rem 0; }
+.q7-q { font-weight: 600; margin-bottom: 0.4rem; font-size: 0.95rem; }
+
 @media (max-width: 520px) {
-  /* 5〜6択を縦画面の1行に均等幅で収める（はみ出さず縮める） */
-  .wiz-slot .radio-row { gap: 0.25rem; flex-wrap: nowrap; justify-content: space-between; }
-  .wiz-slot .radio-row > label { flex: 1 1 0; min-width: 0; }
-  .wiz-slot .radio-row > label > span { font-size: 0.6rem; line-height: 1.2; word-break: break-word; }
-  .wiz-slot .radio-row > label > span:nth-of-type(1) { font-size: 0.95rem; } /* 数字は大きめ */
-  .wiz-slot .radio-row input[type="radio"] { transform: scale(1.1); }
-  .slider-with-marks .marks { font-size: 0.58rem; }
+  /* 選択肢を縦並びのタップ式に（横書き1行：○ 数字 ことば）。全スケール共通 */
+  .wiz-slot .radio-row { flex-direction: column; align-items: stretch; gap: 0.4rem; flex-wrap: nowrap; }
+  .wiz-slot .radio-row > label {
+    flex-direction: row !important; align-items: center; justify-content: flex-start;
+    gap: 0.6rem; padding: 0.65rem 0.85rem; width: 100%;
+    background: rgba(0,0,0,0.22); border: 1px solid var(--border); border-radius: 12px;
+  }
+  .wiz-slot .radio-row > label > span { text-align: left !important; }
+  .wiz-slot .radio-row > label .opt-num { font-size: 1rem; min-width: 1.6em; text-align: center; }
+  .wiz-slot .radio-row > label .opt-word { font-size: 0.92rem !important; color: #e7edf7 !important; line-height: 1.3; }
+  .wiz-slot .radio-row label br { display: none; } /* アンカー語を1行に */
+  .wiz-slot .radio-row input[type="radio"] { transform: scale(1.25); margin: 0; }
   /* PANASは「語＋意味」を上、選択肢を下に分けて全幅で表示 */
   #panasPreContainer > div, #panasPostContainer > div { grid-template-columns: 1fr !important; gap: 0.3rem !important; }
+  .slider-with-marks .marks { font-size: 0.58rem; }
 }
 </style>
 </head>
@@ -386,21 +396,11 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 <b>本日のリマインド</b>
 <p class="note" id="reminderText" style="margin:0.25rem 0 0;">Day 2〜14は毎日17時に研究代表者からBCC一斉送信でリマインドします。</p>
 </div>
-<div class="scale-row"><span class="label">気分（−10〜+10）</span>
-<input type="range" min="-10" max="10" value="0" id="homeMood" oninput="document.getElementById('homeMoodV').textContent=this.value">
-<span class="value" id="homeMoodV">0</span></div>
-<div class="scale-row"><span class="label">ストレス度（0〜10）</span>
-<input type="range" min="0" max="10" value="5" id="homeStress" oninput="document.getElementById('homeStressV').textContent=this.value">
-<span class="value" id="homeStressV">5</span></div>
-<div class="scale-row"><span class="label">疲労感（0〜10）</span>
-<input type="range" min="0" max="10" value="5" id="homeFatigue" oninput="document.getElementById('homeFatigueV').textContent=this.value">
-<span class="value" id="homeFatigueV">5</span></div>
-<div class="scale-row"><span class="label">イライラ（0〜10）</span>
-<input type="range" min="0" max="10" value="5" id="homeAnger" oninput="document.getElementById('homeAngerV').textContent=this.value">
-<span class="value" id="homeAngerV">5</span></div>
-<div class="scale-row"><span class="label">不安（0〜10）</span>
-<input type="range" min="0" max="10" value="5" id="homeAnxiety" oninput="document.getElementById('homeAnxietyV').textContent=this.value">
-<span class="value" id="homeAnxietyV">5</span></div>
+<div class="q7"><div class="q7-q">気分</div><div id="homeMood_box"></div></div>
+<div class="q7"><div class="q7-q">ストレス度</div><div id="homeStress_box"></div></div>
+<div class="q7"><div class="q7-q">疲労感</div><div id="homeFatigue_box"></div></div>
+<div class="q7"><div class="q7-q">イライラ</div><div id="homeAnger_box"></div></div>
+<div class="q7"><div class="q7-q">不安</div><div id="homeAnxiety_box"></div></div>
 <div class="scale-row"><span class="label">昨晩の睡眠（時間）</span>
 <input type="number" min="0" max="14" step="0.5" value="7" id="homeSleep" style="width:100px;">
 <span></span></div>
@@ -598,11 +598,11 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 <p class="lead">活動の前後にこの画面で記録します。所要5〜7分。</p>
 
 <h3>1. 活動前（活動直前）</h3>
-<div class="scale-row"><span class="label">気分（−10〜+10）</span><input type="range" min="-10" max="10" value="0" id="prMood" oninput="document.getElementById('prMoodV').textContent=this.value"><span class="value" id="prMoodV">0</span></div>
-<div class="scale-row"><span class="label">ストレス度（0〜10）</span><input type="range" min="0" max="10" value="5" id="prStress" oninput="document.getElementById('prStressV').textContent=this.value"><span class="value" id="prStressV">5</span></div>
-<div class="scale-row"><span class="label">疲労感（0〜10）</span><input type="range" min="0" max="10" value="5" id="prFatigue" oninput="document.getElementById('prFatigueV').textContent=this.value"><span class="value" id="prFatigueV">5</span></div>
-<div class="scale-row"><span class="label">イライラ（0〜10）</span><input type="range" min="0" max="10" value="5" id="prAnger" oninput="document.getElementById('prAngerV').textContent=this.value"><span class="value" id="prAngerV">5</span></div>
-<div class="scale-row"><span class="label">不安（0〜10）</span><input type="range" min="0" max="10" value="5" id="prAnx" oninput="document.getElementById('prAnxV').textContent=this.value"><span class="value" id="prAnxV">5</span></div>
+<div class="q7"><div class="q7-q">気分</div><div id="prMood_box"></div></div>
+<div class="q7"><div class="q7-q">ストレス度</div><div id="prStress_box"></div></div>
+<div class="q7"><div class="q7-q">疲労感</div><div id="prFatigue_box"></div></div>
+<div class="q7"><div class="q7-q">イライラ</div><div id="prAnger_box"></div></div>
+<div class="q7"><div class="q7-q">不安</div><div id="prAnx_box"></div></div>
 <div class="scale-row"><span class="label">昨晩の睡眠（時間）</span><input type="number" min="0" max="14" step="0.5" value="7" id="prSleep" style="width:100px;"><span></span></div>
 <div style="margin:0.5rem 0;">
 <label>主なストレス源（複数選択可）</label>
@@ -648,16 +648,16 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 </div>
 
 <h3>5. 活動直後の主観評価</h3>
-<div class="scale-row"><span class="label">気分（−10〜+10）</span><input type="range" min="-10" max="10" value="0" id="postMood" oninput="document.getElementById('postMoodV').textContent=this.value"><span class="value" id="postMoodV">0</span></div>
-<div class="scale-row"><span class="label">ストレス度（0〜10）</span><input type="range" min="0" max="10" value="5" id="postStress" oninput="document.getElementById('postStressV').textContent=this.value"><span class="value" id="postStressV">5</span></div>
-<div class="scale-row"><span class="label">効果実感（1〜5）</span><input type="range" min="1" max="5" value="3" id="postEff" oninput="document.getElementById('postEffV').textContent=this.value"><span class="value" id="postEffV">3</span></div>
+<div class="q7"><div class="q7-q">気分</div><div id="postMood_box"></div></div>
+<div class="q7"><div class="q7-q">ストレス度</div><div id="postStress_box"></div></div>
+<div class="q7"><div class="q7-q">効果実感</div><div id="postEff_box"></div></div>
 
 <h3>6. PANAS短縮版（活動直後）</h3>
 <div id="panasPostContainer"></div>
 
 <h3>7. 5分後評価</h3>
-<div class="scale-row"><span class="label">ストレス度（0〜10）</span><input type="range" min="0" max="10" value="5" id="m5Stress" oninput="document.getElementById('m5StressV').textContent=this.value"><span class="value" id="m5StressV">5</span></div>
-<div class="scale-row"><span class="label">心地よさ（1〜5）</span><input type="range" min="1" max="5" value="3" id="m5Pleasant" oninput="document.getElementById('m5PleasantV').textContent=this.value"><span class="value" id="m5PleasantV">3</span></div>
+<div class="q7"><div class="q7-q">ストレス度</div><div id="m5Stress_box"></div></div>
+<div class="q7"><div class="q7-q">心地よさ</div><div id="m5Pleasant_box"></div></div>
 
 <h3>8. 自由記述（任意）</h3>
 <textarea id="dailyMemo" placeholder="今日の活動について感じたこと・気づいたことを，思いつくまま自由に"></textarea>
@@ -958,15 +958,33 @@ function _radio(name, values, anchors) {
   return '<div class="radio-row">' + values.map(v =>
     `<label style="display:flex; flex-direction:column; align-items:center; gap:2px;">` +
       `<input type="radio" name="${name}" value="${v}">` +
-      `<span style="font-weight:700;">${v}</span>` +
-      (anchors[v] ? `<span style="font-size:0.66rem; color:var(--muted); line-height:1.15; text-align:center;">${anchors[v]}</span>` : '') +
+      `<span class="opt-num" style="font-weight:700;">${v}</span>` +
+      (anchors[v] ? `<span class="opt-word" style="font-size:0.66rem; color:var(--muted); line-height:1.15; text-align:center;">${anchors[v]}</span>` : '') +
     `</label>`).join('') + '</div>';
 }
 function gen5pt(name, anchors)    { return _radio(name, [0,1,2,3,4], anchors); }
 function gen6pt(name, anchors)    { return _radio(name, [0,1,2,3,4,5], anchors); }
 function gen5radio(name, anchors) { return _radio(name, [1,2,3,4,5], anchors); }
-function gen11slider(name) {
-  return `<input type="range" min="-5" max="5" value="0" id="${name}" oninput="document.getElementById('${name}_v').textContent=this.value"> <span id="${name}_v" style="color:var(--gold); font-weight:700;">0</span>`;
+
+// ===== 7件法（スライダー廃止・選択式） =====
+const V_BIP = [-3,-2,-1,0,1,2,3];
+const V_UNI = [0,1,2,3,4,5,6];
+const A_BIPMOOD = {'-3':'とても悪い','-2':'悪い','-1':'やや悪い','0':'どちらでもない','1':'やや良い','2':'良い','3':'とても良い'};
+const A_UNIINT  = {0:'まったくない',1:'ごくわずか',2:'少し',3:'中くらい',4:'やや強い',5:'強い',6:'とても強い'};
+const A_UNIEFF  = {0:'まったく効果なし',1:'ごくわずか',2:'少し',3:'中くらい',4:'やや効果あり',5:'効果あり',6:'とても効果あり'};
+const A_UNIPLE  = {0:'まったく心地よくない',1:'ごくわずか',2:'少し',3:'中くらい',4:'やや心地よい',5:'心地よい',6:'とても心地よい'};
+const A_BIPLIKE = {'-3':'とても苦手','-2':'苦手','-1':'やや苦手','0':'どちらでもない','1':'やや好き','2':'好き','3':'とても好き'};
+const A_BIPFEAS = {'-3':'とてもやりにくい','-2':'やりにくい','-1':'ややりにくい','0':'どちらでもない','1':'ややりやすい','2':'やりやすい','3':'とてもやりやすい'};
+const A_BIPTYPE = {'-3':'まったくあてはまらない','-2':'あてはまらない','-1':'やや違う','0':'どちらでもない','1':'やや','2':'あてはまる','3':'とてもあてはまる'};
+function gen7(name, vals, anchors) { return _radio(name, vals, anchors); }
+// 選択式の値の読み書き（name属性で参照）
+function rv(name, def) { const e = document.querySelector(`input[name="${name}"]:checked`); return e ? parseInt(e.value) : (def !== undefined ? def : 0); }
+function sv(name, val) { const e = document.querySelector(`input[name="${name}"][value="${val}"]`); if (e) e.checked = true; }
+function mount7(boxId, name, vals, anchors, def) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  box.innerHTML = gen7(name, vals, anchors);
+  if (def !== undefined) sv(name, def);
 }
 
 function initSurvey() {
@@ -986,16 +1004,16 @@ function initSurvey() {
   ACTIVITIES.forEach(a => {
     html += `<div style="margin:0.6rem 0; padding:0.5rem; background:rgba(0,0,0,0.18); border-radius:10px;">
       <div style="font-weight:700; color:var(--gold); margin-bottom:4px;">${a.code} ${a.name}</div>
-      <div class="scale-row"><span class="label" style="font-size:0.85rem;">好み度（−5〜+5）</span>${gen11slider('like_'+a.code)}</div>
-      <div class="scale-row"><span class="label" style="font-size:0.85rem;">実施しやすさ（−5〜+5）</span>${gen11slider('feas_'+a.code)}</div>
+      <div class="q7"><div class="q7-q">好み度</div>${gen7('like_'+a.code, V_BIP, A_BIPLIKE)}</div>
+      <div class="q7"><div class="q7-q">実施しやすさ</div>${gen7('feas_'+a.code, V_BIP, A_BIPFEAS)}</div>
     </div>`;
   });
   document.getElementById('actContainer').innerHTML = html;
 
   html = '<h4 style="color:var(--gold); margin-top:0.5rem;">Step 1（A〜F 各カテゴリへの志向性）</h4>';
-  TYPE_STEP1.forEach(t => { html += `<div class="scale-row"><span class="label" style="font-size:0.85rem;">${t.q}</span>${gen11slider(t.id)}</div>`; });
+  TYPE_STEP1.forEach(t => { html += `<div class="q7"><div class="q7-q">${t.q}</div>${gen7(t.id, V_BIP, A_BIPTYPE)}</div>`; });
   html += '<h4 style="color:var(--gold); margin-top:0.5rem;">Step 3（G・H 補正項目）</h4>';
-  TYPE_STEP3.forEach(t => { html += `<div class="scale-row"><span class="label" style="font-size:0.85rem;">${t.q}</span>${gen11slider(t.id)}</div>`; });
+  TYPE_STEP3.forEach(t => { html += `<div class="q7"><div class="q7-q">${t.q}</div>${gen7(t.id, V_BIP, A_BIPTYPE)}</div>`; });
   document.getElementById('typeContainer').innerHTML = html;
 
   const sel = document.getElementById('actDoing');
@@ -1040,6 +1058,23 @@ function initSurvey() {
   html = '';
   APP_QS.forEach((q, i) => { html += `<div style="margin:0.5rem 0;"><label>${q}</label>${gen5radio('app'+(i+1), APP_ANCHORS)}</div>`; });
   document.getElementById('appContainer').innerHTML = html;
+
+  // 状態評定スケール（home/daily）を7件法でマウント（homeは既定値あり＝今日のおすすめ用、日次は未選択）
+  mount7('homeMood_box','homeMood',V_BIP,A_BIPMOOD,0);
+  mount7('homeStress_box','homeStress',V_UNI,A_UNIINT,3);
+  mount7('homeFatigue_box','homeFatigue',V_UNI,A_UNIINT,3);
+  mount7('homeAnger_box','homeAnger',V_UNI,A_UNIINT,3);
+  mount7('homeAnxiety_box','homeAnxiety',V_UNI,A_UNIINT,3);
+  mount7('prMood_box','prMood',V_BIP,A_BIPMOOD);
+  mount7('prStress_box','prStress',V_UNI,A_UNIINT);
+  mount7('prFatigue_box','prFatigue',V_UNI,A_UNIINT);
+  mount7('prAnger_box','prAnger',V_UNI,A_UNIINT);
+  mount7('prAnx_box','prAnx',V_UNI,A_UNIINT);
+  mount7('postMood_box','postMood',V_BIP,A_BIPMOOD);
+  mount7('postStress_box','postStress',V_UNI,A_UNIINT);
+  mount7('postEff_box','postEff',V_UNI,A_UNIEFF);
+  mount7('m5Stress_box','m5Stress',V_UNI,A_UNIINT);
+  mount7('m5Pleasant_box','m5Pleasant',V_UNI,A_UNIPLE);
 }
 
 function submitPostSurvey() {
@@ -1081,14 +1116,8 @@ function calcType() {
   // すべて -5〜+5 に統一。A〜Fは単項目，G・Hは2項目平均。
   const scores = {A:0,B:0,C:0,D:0,E:0,F:0,G:0,H:0};
   const counts = {A:0,B:0,C:0,D:0,E:0,F:0,G:0,H:0};
-  TYPE_STEP1.forEach(t => {
-    const el = document.getElementById(t.id);
-    if (el) { scores[t.cat] += parseInt(el.value || 0); counts[t.cat] += 1; }
-  });
-  TYPE_STEP3.forEach(t => {
-    const el = document.getElementById(t.id);
-    if (el) { scores[t.cat] += parseInt(el.value || 0); counts[t.cat] += 1; }
-  });
+  TYPE_STEP1.forEach(t => { scores[t.cat] += rv(t.id, 0); counts[t.cat] += 1; });
+  TYPE_STEP3.forEach(t => { scores[t.cat] += rv(t.id, 0); counts[t.cat] += 1; });
   Object.keys(scores).forEach(cat => {
     if (counts[cat] > 1) scores[cat] = Number((scores[cat] / counts[cat]).toFixed(2));
   });
@@ -1098,9 +1127,7 @@ function calcType() {
 function calcPreferences() {
   const prefs = {};
   ACTIVITIES.forEach(a => {
-    const el = document.getElementById('like_'+a.code);
-    const fe = document.getElementById('feas_'+a.code);
-    if (el && fe) prefs[a.code] = { like: parseInt(el.value || 0), feas: parseInt(fe.value || 0) };
+    prefs[a.code] = { like: rv('like_'+a.code, 0), feas: rv('feas_'+a.code, 0) };
   });
   return prefs;
 }
@@ -1169,7 +1196,7 @@ function showResultPage() {
   Object.entries(types).forEach(([cat, score]) => {
     const star = (cat === primary[0]) ? ' ★主' : (cat === secondary[0]) ? ' ★副' : '';
     const cls = star ? 'star' : '';
-    const w = Math.abs(score) * 10; // -5〜+5で50%幅
+    const w = Math.abs(score) * (50 / 3); // -3〜+3で50%幅
     const fill = score >= 0 ? `<div class="bar-fill pos" style="width:${w}%"></div>` : `<div class="bar-fill neg" style="width:${w}%"></div>`;
     bars += `<div class="bar-row ${cls}">
       <span class="label">${cat} ${CATEGORIES[cat]}${star}</span>
@@ -1216,11 +1243,11 @@ function generateSuggestion() {
   }
   const term = getParticipantTerm();
   const phase = getCurrentPhase(state.day);
-  const mood = parseInt(document.getElementById('homeMood').value);
-  const stress = parseInt(document.getElementById('homeStress').value);
-  const fatigue = parseInt(document.getElementById('homeFatigue').value);
-  const anger = parseInt(document.getElementById('homeAnger').value);
-  const anx = parseInt(document.getElementById('homeAnxiety').value);
+  const mood = rv('homeMood', 0);
+  const stress = rv('homeStress', 3);
+  const fatigue = rv('homeFatigue', 3);
+  const anger = rv('homeAnger', 3);
+  const anx = rv('homeAnxiety', 3);
   const sleep = parseFloat(document.getElementById('homeSleep').value);
 
   let suggestion = null;
@@ -1247,23 +1274,23 @@ function generateSuggestion() {
   } else if (phase === 'flexible') {
     // v0.7 状態依存ロジック（マトリクス＋優先ルール）
     let cat, ruleNote, ruleCode;
-    if (sleep <= 4 || fatigue >= 8) {
+    if (sleep <= 4 || fatigue >= 5) {
       cat = (Math.random() < 0.5) ? 'B' : 'H';
       ruleCode = 'priority_sleep_fatigue';
       ruleNote = '優先ルール：睡眠不足・疲労が高いため，休息系を優先しました。';
-    } else if (anger >= 8) {
+    } else if (anger >= 5) {
       cat = (Math.random() < 0.5) ? 'A' : 'F';
       ruleCode = 'priority_anger';
       ruleNote = '優先ルール：イライラが特に高いため，発散・達成を促す活動を選びました。';
-    } else if (anx >= 8) {
+    } else if (anx >= 5) {
       cat = (Math.random() < 0.5) ? 'G' : 'B';
       ruleCode = 'priority_anxiety';
       ruleNote = '優先ルール：不安が特に高いため，観察・鎮静を促す活動を選びました。';
-    } else if (stress >= 5 && mood <= 0) {
+    } else if (stress >= 3 && mood <= 0) {
       cat = (Math.random() < 0.5) ? 'C' : 'D';
       ruleCode = 'matrix_high_stress_low_mood';
       ruleNote = 'マトリクス：ストレス高×気分低 → 注意転換／社会的サポート';
-    } else if (stress >= 5 && mood > 0) {
+    } else if (stress >= 3 && mood > 0) {
       cat = (Math.random() < 0.5) ? 'A' : 'B';
       ruleCode = 'matrix_high_stress_high_mood';
       ruleNote = 'マトリクス：ストレス高×気分高 → 活性化バランス';
@@ -1287,11 +1314,11 @@ function generateSuggestion() {
       term, condition: 'rest', reason: 'Day 8 は研究の中継日です。本日は活動の実施・記録はお休みです。リマインドメールのみ送信されます。' };
   } else if (phase === 'prep') {
     let cat;
-    if (sleep <= 4 || fatigue >= 8) cat = (Math.random()<0.5)?'B':'H';
-    else if (anger >= 8) cat = (Math.random()<0.5)?'A':'F';
-    else if (anx >= 8) cat = (Math.random()<0.5)?'G':'B';
-    else if (stress >= 5 && mood <= 0) cat = (Math.random()<0.5)?'C':'D';
-    else if (stress >= 5 && mood > 0) cat = (Math.random()<0.5)?'A':'B';
+    if (sleep <= 4 || fatigue >= 5) cat = (Math.random()<0.5)?'B':'H';
+    else if (anger >= 5) cat = (Math.random()<0.5)?'A':'F';
+    else if (anx >= 5) cat = (Math.random()<0.5)?'G':'B';
+    else if (stress >= 3 && mood <= 0) cat = (Math.random()<0.5)?'C':'D';
+    else if (stress >= 3 && mood > 0) cat = (Math.random()<0.5)?'A':'B';
     else if (mood > 0) cat = (Math.random()<0.5)?'E':'F';
     else cat = (Math.random()<0.5)?'G':'H';
     const acts = ACTIVITIES.filter(a => a.category === cat);
@@ -1359,11 +1386,11 @@ function submitDaily() {
       reasonText: (suggestion.reason || '').replace(/<[^>]+>/g, ' '),
     } : null,
     pre: {
-      mood: parseInt(document.getElementById('prMood').value),
-      stress: parseInt(document.getElementById('prStress').value),
-      fatigue: parseInt(document.getElementById('prFatigue').value),
-      anger: parseInt(document.getElementById('prAnger').value),
-      anxiety: parseInt(document.getElementById('prAnx').value),
+      mood: rv('prMood', 0),
+      stress: rv('prStress', 3),
+      fatigue: rv('prFatigue', 3),
+      anger: rv('prAnger', 3),
+      anxiety: rv('prAnx', 3),
       sleep: document.getElementById('prSleep') ? parseFloat(document.getElementById('prSleep').value) : null,
       stressSources: sources,
     },
@@ -1373,9 +1400,9 @@ function submitDaily() {
     bp_pre: { pulse: document.getElementById('bpPreP').value, sys: document.getElementById('bpPreS').value, dia: document.getElementById('bpPreD').value },
     bp_post: { pulse: document.getElementById('bpPostP').value, sys: document.getElementById('bpPostS').value, dia: document.getElementById('bpPostD').value },
     bp_5min: { pulse: document.getElementById('bp5P').value, sys: document.getElementById('bp5S').value, dia: document.getElementById('bp5D').value },
-    post: { mood: parseInt(document.getElementById('postMood').value), stress: parseInt(document.getElementById('postStress').value), eff: parseInt(document.getElementById('postEff').value) },
+    post: { mood: rv('postMood', 0), stress: rv('postStress', 3), eff: rv('postEff', 3) },
     panas_post: collectPanas('post'),
-    after5: { stress: parseInt(document.getElementById('m5Stress').value), pleasant: parseInt(document.getElementById('m5Pleasant').value) },
+    after5: { stress: rv('m5Stress', 3), pleasant: rv('m5Pleasant', 3) },
   };
   rec.panas_summary = {
     pre: summarizePanas(rec.panas_pre),
@@ -1924,6 +1951,7 @@ if (!state.consent || !state.consent.pid) { showPage('about'); }
 (function () {
   const byId = id => document.getElementById(id);
   const rowOf = id => { const e = byId(id); return e ? e.closest('.scale-row') : null; };
+  const q7Of = name => { const b = byId(name + '_box'); return b ? b.closest('.q7') : null; }; // 7件法ブロック
 
   // --- 各アンケートの設問ステップを組み立てる（既存DOMから収集） ---
   function buildSurveySteps() {
@@ -1936,7 +1964,7 @@ if (!state.consent || !state.consent.pid) { showPage('about'); }
     [...byId('whoContainer').children].forEach(d => push(d, 'WHO-5（精神的健康度）'));
     [...byId('abcdContainer').children].forEach(d => push(d, '普段のストレス対処状態'));
     [...byId('actContainer').children].forEach(d => push(d, '16活動の好み度・実施しやすさ'));
-    [...byId('typeContainer').querySelectorAll('.scale-row')].forEach(d => push(d, 'ストレス対処タイプ診断'));
+    [...byId('typeContainer').querySelectorAll('.q7')].forEach(d => push(d, 'ストレス対処タイプ診断'));
     push(byId('frBaseline') && byId('frBaseline').parentElement, '普段の対処（自由記述・任意）');
     return s;
   }
@@ -1951,9 +1979,10 @@ if (!state.consent || !state.consent.pid) { showPage('about'); }
 
   // 活動前の入力をホーム入力へ写し、既存ロジックで「今日の対処方法」を確定（1日1回）
   function assignDaily(host) {
-    const map = { homeMood:'prMood', homeStress:'prStress', homeFatigue:'prFatigue',
-                  homeAnger:'prAnger', homeAnxiety:'prAnx', homeSleep:'prSleep' };
-    Object.keys(map).forEach(h => { const src = byId(map[h]), dst = byId(h); if (src && dst) dst.value = src.value; });
+    // 活動前の入力（選択式）をホーム側の選択にコピー → 既存ロジックを再利用
+    [['homeMood','prMood'],['homeStress','prStress'],['homeFatigue','prFatigue'],
+     ['homeAnger','prAnger'],['homeAnxiety','prAnx']].forEach(([h, pr]) => sv(h, rv(pr)));
+    const ps = byId('prSleep'), hs = byId('homeSleep'); if (ps && hs) hs.value = ps.value;
     const cfg = WIZ.daily;
     if (cfg._assignedDay !== state.day) {
       generateSuggestion();          // state.currentSuggestion を確定（activityなら #actDoing もセット）
@@ -2004,7 +2033,8 @@ if (!state.consent || !state.consent.pid) { showPage('about'); }
 
     push(mkInfo('<h3 style="color:var(--gold);margin:0 0 .6rem;">活動の前に</h3><p style="font-size:1rem;line-height:1.9;">いまの気分や体の状態を記録します。正解はありません。感じたままで大丈夫です。</p>'), '活動前の記録');
 
-    ['prMood','prStress','prFatigue','prAnger','prAnx','prSleep'].forEach(id => push(rowOf(id), '1. 活動前の状態'));
+    ['prMood','prStress','prFatigue','prAnger','prAnx'].forEach(id => push(q7Of(id), '1. 活動前の状態'));
+    push(rowOf('prSleep'), '1. 活動前（昨晩の睡眠）');
     const src = document.querySelector('input[name="stressSource"]');
     push(src && src.closest('.radio-row').parentElement, '1. 活動前（ストレス源）', { noAuto: true });
     [...byId('panasPreContainer').children].forEach(d => push(d, '2. いまの感情（PANAS）'));
@@ -2021,13 +2051,13 @@ if (!state.consent || !state.consent.pid) { showPage('about'); }
     push(mkInfo('<h3 style="color:var(--gold);margin:0 0 .6rem;">直後の計測</h3><p style="font-size:1rem;line-height:1.9;">活動が終わったら <b>すぐに</b> もう一度、脈拍・血圧を測って入力してください。</p>'), '6. 直後の計測');
     push(byId('bpPostP') && byId('bpPostP').closest('.card-strong'), '6. 直後の計測（脈拍・血圧）', { noAuto: true });
 
-    ['postMood','postStress','postEff'].forEach(id => push(rowOf(id), '7. 活動直後の評価'));
+    ['postMood','postStress','postEff'].forEach(id => push(q7Of(id), '7. 活動直後の評価'));
     [...byId('panasPostContainer').children].forEach(d => push(d, '8. 活動直後の感情（PANAS）'));
 
     push(mkInfo('<h3 style="color:var(--gold);margin:0 0 .6rem;">5分後の計測</h3><p style="font-size:1rem;line-height:1.9;">そのまま <b>5分間</b> 安静に過ごし、もう一度 脈拍・血圧を測って入力してください。</p>'), '9. 5分後の計測');
     push(byId('bp5P') && byId('bp5P').closest('.card-strong'), '9. 5分後の計測（脈拍・血圧）', { noAuto: true });
 
-    ['m5Stress','m5Pleasant'].forEach(id => push(rowOf(id), '10. 5分後の評価'));
+    ['m5Stress','m5Pleasant'].forEach(id => push(q7Of(id), '10. 5分後の評価'));
     push(byId('dailyMemo'), '自由記述（任意）', { noAuto: true });
 
     return s;
@@ -2114,8 +2144,12 @@ if (!state.consent || !state.consent.pid) { showPage('about'); }
       cfg.holder = holder;
       cfg.steps.forEach((s, i) => {
         holder.appendChild(s.el);
-        // ラジオ・セレクトは選んだら自動で次へ（スライダー/数値/記述/案内ステップは手動）
-        if (!s.noAuto) {
+        // 自動送りは「設問が1つだけ」のステップに限る（好み度＋実施しやすさのような複数設問は手動）
+        const radios = s.el.querySelectorAll('input[type="radio"]');
+        const groups = new Set([...radios].map(r => r.name));
+        const selects = s.el.querySelectorAll('select');
+        const single = (groups.size + selects.length) === 1;
+        if (!s.noAuto && single) {
           s.el.querySelectorAll('input[type="radio"], select').forEach(inp => {
             inp.addEventListener('change', () => { if (cfg.idx === i) scheduleNext(cfg); });
           });
