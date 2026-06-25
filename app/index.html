@@ -339,19 +339,22 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 .q7 { margin: 0.7rem 0; }
 .q7-q { font-weight: 600; margin-bottom: 0.4rem; font-size: 0.95rem; }
 
+/* 選択肢を縦並びのタップ式に（横書き1行：○ 数字 ことば）。全スケール・全幅共通 */
+.wiz-slot .radio-row { flex-direction: column; align-items: stretch; gap: 0.4rem; flex-wrap: nowrap; }
+.wiz-slot .radio-row > label {
+  flex-direction: row !important; align-items: center; justify-content: flex-start;
+  gap: 0.6rem; padding: 0.65rem 0.9rem; width: 100%;
+  background: rgba(0,0,0,0.22); border: 1px solid var(--border); border-radius: 12px;
+  cursor: pointer; transition: background .15s;
+}
+.wiz-slot .radio-row > label:hover { background: rgba(255,255,255,0.12); }
+.wiz-slot .radio-row > label > span { text-align: left !important; }
+.wiz-slot .radio-row > label .opt-num { font-size: 1rem; min-width: 1.6em; text-align: center; }
+.wiz-slot .radio-row > label .opt-word { font-size: 0.95rem !important; color: #e7edf7 !important; line-height: 1.3; }
+.wiz-slot .radio-row label br { display: none; } /* アンカー語を1行に */
+.wiz-slot .radio-row input[type="radio"] { transform: scale(1.25); margin: 0; }
+
 @media (max-width: 520px) {
-  /* 選択肢を縦並びのタップ式に（横書き1行：○ 数字 ことば）。全スケール共通 */
-  .wiz-slot .radio-row { flex-direction: column; align-items: stretch; gap: 0.4rem; flex-wrap: nowrap; }
-  .wiz-slot .radio-row > label {
-    flex-direction: row !important; align-items: center; justify-content: flex-start;
-    gap: 0.6rem; padding: 0.65rem 0.85rem; width: 100%;
-    background: rgba(0,0,0,0.22); border: 1px solid var(--border); border-radius: 12px;
-  }
-  .wiz-slot .radio-row > label > span { text-align: left !important; }
-  .wiz-slot .radio-row > label .opt-num { font-size: 1rem; min-width: 1.6em; text-align: center; }
-  .wiz-slot .radio-row > label .opt-word { font-size: 0.92rem !important; color: #e7edf7 !important; line-height: 1.3; }
-  .wiz-slot .radio-row label br { display: none; } /* アンカー語を1行に */
-  .wiz-slot .radio-row input[type="radio"] { transform: scale(1.25); margin: 0; }
   /* PANASは「語＋意味」を上、選択肢を下に分けて全幅で表示 */
   #panasPreContainer > div, #panasPostContainer > div { grid-template-columns: 1fr !important; gap: 0.3rem !important; }
   .slider-with-marks .marks { font-size: 0.58rem; }
@@ -409,13 +412,19 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 <div class="card">
 <p class="eyebrow">TODAY</p>
 <h2 id="homeDate">本日の予報</h2>
-<p class="lead" id="homeMessage">今日の調子はいかがですか？気分とストレスを入力すると，今日のおすすめが表示されます。</p>
+<p class="lead" id="homeMessage">「ココロ予報をする」を押すと、いまの気分やストレスを1問ずつ答えて、今日のおすすめが表示されます。</p>
 
-<h3>いまの気分・ストレス</h3>
 <div class="reminder-card" id="reminderPanel">
 <b>本日のリマインド</b>
 <p class="note" id="reminderText" style="margin:0.25rem 0 0;">Day 2〜14は毎日17時に研究代表者からBCC一斉送信でリマインドします。</p>
 </div>
+
+<div id="homeStart" class="btn-row">
+<button class="btn" onclick="startHomeForecast()">ココロ予報をする ▶</button>
+</div>
+
+<div id="homeQuestions" style="display:none;">
+<h3>いまの気分・ストレス</h3>
 <div class="q7"><div class="q7-q">気分</div><div id="homeMood_box"></div></div>
 <div class="q7"><div class="q7-q">ストレス度</div><div id="homeStress_box"></div></div>
 <div class="q7"><div class="q7-q">疲労感</div><div id="homeFatigue_box"></div></div>
@@ -424,10 +433,10 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 <div class="scale-row"><span class="label">昨晩の睡眠（時間）</span>
 <input type="number" min="0" max="14" step="0.5" value="7" id="homeSleep" style="width:100px;">
 <span></span></div>
-
 <div class="btn-row">
-<button class="btn" onclick="generateSuggestion()">今日のおすすめを表示</button>
+<button class="btn" onclick="generateSuggestion()" style="display:none;">今日のおすすめを表示</button>
 <button class="btn secondary small" onclick="nextDay()" style="display:none;">次のDayへ（テスト用）</button>
+</div>
 </div>
 </div>
 
@@ -2188,6 +2197,57 @@ if (!state.consent || !state.consent.pid) { showPage('about'); }
     render(cfg);
   }
 
+  // ===== home「本日の予報」を 1問ずつ（ボタン起動→おすすめ）にする =====
+  let homeCfg = null;
+  function buildHomeSteps() {
+    const s = [];
+    ['homeMood_box','homeStress_box','homeFatigue_box','homeAnger_box','homeAnxiety_box'].forEach(id => {
+      const el = byId(id) && byId(id).closest('.q7');
+      if (el) s.push({ el, sec: 'いまの気分・ストレス' });
+    });
+    const sleep = byId('homeSleep') && byId('homeSleep').closest('.scale-row');
+    if (sleep) s.push({ el: sleep, sec: '昨晩の睡眠', noAuto: true });
+    return s;
+  }
+  function finishHomeForecast() {
+    if (homeCfg) {
+      // スロット内の設問をDOMに残す（撤去で消えると generateSuggestion が読めなくなる）
+      if (homeCfg.shown && homeCfg.holder) homeCfg.holder.appendChild(homeCfg.shown);
+      if (homeCfg.shell) homeCfg.shell.remove();
+    }
+    homeCfg = null;
+    generateSuggestion();   // 既存ロジックで「今日のおすすめ」を生成・表示
+    const sc = byId('suggestionCard');
+    if (sc) {
+      sc.style.display = 'block';
+      window.scrollTo({ top: Math.max(0, sc.getBoundingClientRect().top + window.scrollY - 80), behavior: 'smooth' });
+    }
+  }
+  function startHomeForecast() {
+    const page = byId('home');
+    if (!page) return;
+    const cfg = { title: 'ココロ予報', submit: finishHomeForecast, submitLabel: 'おすすめを見る ▶', idx: 0 };
+    cfg.steps = buildHomeSteps();
+    const holder = document.createElement('div'); holder.style.display = 'none'; page.appendChild(holder); cfg.holder = holder;
+    cfg.steps.forEach((s, i) => {
+      holder.appendChild(s.el);
+      const groups = new Set([...s.el.querySelectorAll('input[type="radio"]')].map(r => r.name));
+      if (!s.noAuto && groups.size === 1) {
+        s.el.querySelectorAll('input[type="radio"]').forEach(inp => {
+          inp.addEventListener('change', () => { if (cfg.idx === i) scheduleNext(cfg); });
+        });
+      }
+    });
+    const startBtn = byId('homeStart'); if (startBtn) startBtn.style.display = 'none';
+    const qWrap = byId('homeQuestions'); if (qWrap) qWrap.style.display = 'none';
+    const sc = byId('suggestionCard'); if (sc) sc.style.display = 'none';
+    cfg.shell = buildShell(cfg);
+    page.querySelector('.card').appendChild(cfg.shell);
+    homeCfg = cfg;
+    render(cfg);
+  }
+  window.startHomeForecast = startHomeForecast;
+
   // showPage をラップして、3アンケート画面に来たらウィザードを起動・再描画
   const _origShowPage = window.showPage;
   window.showPage = function (id) {
@@ -2203,7 +2263,7 @@ if (!state.consent || !state.consent.pid) { showPage('about'); }
 
 <!-- ====== バージョン管理＋更新（A:更新ボタン / B:バージョン表示 / C:起動時に最新チェック） ====== -->
 <script>
-const APP_VERSION = '2026.06.25-1';
+const APP_VERSION = '2026.06.25-2';
 (function () {
   const vEl = document.getElementById('appVersion');
   if (vEl) vEl.textContent = APP_VERSION;
