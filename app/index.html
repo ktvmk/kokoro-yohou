@@ -321,6 +321,31 @@ input[type="range"] { width: 100%; accent-color: var(--gold); }
   .wiz { padding: 1rem; min-height: 66vh; border-radius: 16px; }
   .wiz-slot { padding: 1rem 0.8rem; }
 }
+
+/* ===== モバイル最適化（2026-06-25） ===== */
+/* iOSの入力フォーカス時の自動ズーム防止（16px未満だと拡大される） */
+input[type="number"], input[type="text"], input[type="email"], select, textarea { font-size: 16px; }
+/* スライダーをドラッグしてもページがスクロールしない */
+input[type="range"] { touch-action: none; }
+/* 横はみ出し（横スクロール）防止 */
+html, body { overflow-x: hidden; }
+main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
+.slider-with-marks { width: 100%; max-width: 100%; }
+/* 目盛りの両端ラベルが画面外に出ないよう端を内側に寄せる */
+.slider-with-marks .marks span:first-child { transform: none; }
+.slider-with-marks .marks span:last-child  { transform: translateX(-100%); }
+
+@media (max-width: 520px) {
+  /* 5〜6択を縦画面の1行に均等幅で収める（はみ出さず縮める） */
+  .wiz-slot .radio-row { gap: 0.25rem; flex-wrap: nowrap; justify-content: space-between; }
+  .wiz-slot .radio-row > label { flex: 1 1 0; min-width: 0; }
+  .wiz-slot .radio-row > label > span { font-size: 0.6rem; line-height: 1.2; word-break: break-word; }
+  .wiz-slot .radio-row > label > span:nth-of-type(1) { font-size: 0.95rem; } /* 数字は大きめ */
+  .wiz-slot .radio-row input[type="radio"] { transform: scale(1.1); }
+  .slider-with-marks .marks { font-size: 0.58rem; }
+  /* PANASは「語＋意味」を上、選択肢を下に分けて全幅で表示 */
+  #panasPreContainer > div, #panasPostContainer > div { grid-template-columns: 1fr !important; gap: 0.3rem !important; }
+}
 </style>
 </head>
 <body>
