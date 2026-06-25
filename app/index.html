@@ -1094,11 +1094,11 @@ function initSurvey() {
   document.getElementById('appContainer').innerHTML = html;
 
   // 状態評定スケール（home/daily）を7件法でマウント（homeは既定値あり＝今日のおすすめ用、日次は未選択）
-  mount7('homeMood_box','homeMood',V_BIP,A_BIPMOOD,0);
-  mount7('homeStress_box','homeStress',V_UNI,A_UNIINT,3);
-  mount7('homeFatigue_box','homeFatigue',V_UNI,A_UNIINT,3);
-  mount7('homeAnger_box','homeAnger',V_UNI,A_UNIINT,3);
-  mount7('homeAnxiety_box','homeAnxiety',V_UNI,A_UNIINT,3);
+  mount7('homeMood_box','homeMood',V_BIP,A_BIPMOOD);
+  mount7('homeStress_box','homeStress',V_UNI,A_UNIINT);
+  mount7('homeFatigue_box','homeFatigue',V_UNI,A_UNIINT);
+  mount7('homeAnger_box','homeAnger',V_UNI,A_UNIINT);
+  mount7('homeAnxiety_box','homeAnxiety',V_UNI,A_UNIINT);
   mount7('prMood_box','prMood',V_BIP,A_BIPMOOD);
   mount7('prStress_box','prStress',V_UNI,A_UNIINT);
   mount7('prFatigue_box','prFatigue',V_UNI,A_UNIINT);
@@ -2077,7 +2077,7 @@ if (!state.consent || !state.consent.pid) { showPage('about'); }
     push(byId('bpPreP') && byId('bpPreP').closest('.card-strong'), '3. 直前の計測（脈拍・血圧）', { noAuto: true });
 
     const assignEl = mkInfo('<h3 style="color:var(--gold);margin:0 0 .6rem;">今日の対処方法</h3><div id="wizAssignBody"></div>');
-    push(assignEl, '4. 今日の対処方法', { noAuto: true, onShow: () => assignDaily(assignEl) });
+    push(assignEl, '4. 今日の対処方法', { noAuto: true, noValidate: true, onShow: () => assignDaily(assignEl) });
 
     const doEl = mkInfo('<div id="wizDoBody"></div>');
     push(doEl, '5. 実践', { noAuto: true, onShow: () => renderDoStep(doEl) });
@@ -2135,8 +2135,34 @@ if (!state.consent || !state.consent.pid) { showPage('about'); }
     cfg.slot  = wiz.querySelector('.wiz-slot');
     cfg.back  = wiz.querySelector('.wiz-back');
     cfg.next  = wiz.querySelector('.wiz-next');
+    cfg.hint  = wiz.querySelector('.wiz-hint');
     cfg.back.onclick = () => { if (cfg.idx > 0) { cfg.idx--; render(cfg); } };
     return wiz;
+  }
+
+  // 回答必須チェック：ラジオ全グループ選択・セレクト/数値/テキスト記入が必要。textarea(自由記述)は任意で除外。
+  function isStepAnswered(el) {
+    const groups = {};
+    el.querySelectorAll('input[type="radio"]').forEach(r => { if (!(r.name in groups)) groups[r.name] = false; if (r.checked) groups[r.name] = true; });
+    if (Object.values(groups).some(v => !v)) return false;
+    for (const s of el.querySelectorAll('select')) if (!s.value) return false;
+    for (const inp of el.querySelectorAll('input[type="number"], input[type="text"]')) if (inp.value === '') return false;
+    const cbs = el.querySelectorAll('input[type="checkbox"]');
+    if (cbs.length && ![...cbs].some(c => c.checked)) return false;
+    return true;
+  }
+  function showWarn(cfg) {
+    if (!cfg.hint) return;
+    if (cfg._hintText == null) cfg._hintText = cfg.hint.textContent;
+    cfg.hint.textContent = '⚠ この質問に答えてから「次へ」を押してください';
+    cfg.hint.style.color = '#ffe08a';
+    cfg.hint.style.fontWeight = '700';
+    clearTimeout(cfg._hintTimer);
+    cfg._hintTimer = setTimeout(() => {
+      cfg.hint.textContent = cfg._hintText;
+      cfg.hint.style.color = '';
+      cfg.hint.style.fontWeight = '';
+    }, 2600);
   }
 
   function scheduleNext(cfg) {
@@ -2159,9 +2185,11 @@ if (!state.consent || !state.consent.pid) { showPage('about'); }
     cfg.back.style.visibility = cfg.idx === 0 ? 'hidden' : 'visible';
     const last = cfg.idx === cfg.steps.length - 1;
     cfg.next.textContent = last ? cfg.submitLabel : '次へ ▶';
-    cfg.next.onclick = last
-      ? () => { cfg.idx = 0; cfg.submit(); }
-      : () => { cfg.idx++; render(cfg); };
+    cfg.next.onclick = () => {
+      if (!step.noValidate && !isStepAnswered(step.el)) { showWarn(cfg); return; }   // 記入しないと進めない
+      if (last) { cfg.idx = 0; cfg.submit(); }
+      else { cfg.idx++; render(cfg); }
+    };
     const slotTop = cfg.slot.getBoundingClientRect().top + window.scrollY - 90;
     window.scrollTo({ top: Math.max(0, slotTop), behavior: 'smooth' });
   }
@@ -2263,7 +2291,7 @@ if (!state.consent || !state.consent.pid) { showPage('about'); }
 
 <!-- ====== バージョン管理＋更新（A:更新ボタン / B:バージョン表示 / C:起動時に最新チェック） ====== -->
 <script>
-const APP_VERSION = '2026.06.25-2';
+const APP_VERSION = '2026.06.25-3';
 (function () {
   const vEl = document.getElementById('appVersion');
   if (vEl) vEl.textContent = APP_VERSION;
