@@ -394,13 +394,13 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
     </div>
   </div>
   <nav class="main-nav">
-    <button onclick="showPage('home')" class="active" data-page="home">今日のおすすめ</button>
+    <button onclick="showPage('home')" data-page="home" style="display:none;">今日のおすすめ</button>
     <button onclick="showPage('about')" data-page="about">研究について</button>
     <button onclick="showPage('consent')" data-page="consent">同意・参加者情報</button>
     <button onclick="showPage('survey')" data-page="survey">事前アンケート</button>
     <button onclick="showPage('daily')" data-page="daily">日次記録</button>
     <button onclick="showPage('postSurvey')" data-page="postSurvey">事後アンケート</button>
-    <button onclick="showPage('result')" data-page="result">タイプ診断結果</button>
+    <button onclick="showPage('result')" data-page="result" style="display:none;">タイプ診断結果</button>
     <button onclick="showPage('graphs')" data-page="graphs">振り返り</button>
   </nav>
 </header>
@@ -1198,8 +1198,9 @@ function submitSurvey() {
   };
   saveState();
   sendData('survey_pre', flattenSurveyPre());   // ★事前アンケートを記録
-  showResultPage();
-  showPage('result');
+  showResultPage();   // タイプ診断は内部計算・保持（参加者には結果画面を見せない）
+  alert('事前アンケートが完了しました。ありがとうございました。\nDay 2 からは「日次記録」で毎日の記録をお願いします。');
+  showPage('about');
 }
 
 function showResultPage() {
@@ -1972,7 +1973,10 @@ function renderMoodLine(mountId, records) {
 showGraphs();   // 折れ線も初期描画
 
 // 初回アクセス（まだ参加者情報が未登録）なら「研究について」を自動で開く
+// 入口：未同意→研究について／同意済みで事前未回答→事前アンケート／事前済み→日次記録（今日のおすすめ・診断結果は参加者ナビから除外）
 if (!state.consent || !state.consent.pid) { showPage('about'); }
+else if (!state.survey) { showPage('survey'); }
+else { showPage('daily'); }
 </script>
 
 <!-- ====================================================================
@@ -2291,7 +2295,7 @@ if (!state.consent || !state.consent.pid) { showPage('about'); }
 
 <!-- ====== バージョン管理＋更新（A:更新ボタン / B:バージョン表示 / C:起動時に最新チェック） ====== -->
 <script>
-const APP_VERSION = '2026.06.25-3';
+const APP_VERSION = '2026.06.25-4';
 (function () {
   const vEl = document.getElementById('appVersion');
   if (vEl) vEl.textContent = APP_VERSION;
