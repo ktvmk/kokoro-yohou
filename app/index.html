@@ -654,7 +654,7 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 <h3>3. 実施した活動</h3>
 <div class="scale-row"><span class="label">活動</span>
 <select id="actDoing"><option value="">選択</option></select><span></span></div>
-<div class="scale-row"><span class="label">実施時間（分）</span><input type="number" min="5" max="30" value="15" id="actMin"><span></span></div>
+<div class="scale-row"><span class="label">実際にやった時間（分）</span><input type="number" min="1" max="30" value="7" id="actMin"><span></span></div>
 
 <h3>4. 計測（直前・直後・5分後）</h3>
 <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:0.6rem;">
@@ -817,6 +817,8 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 <footer class="app-version">
   <span>バージョン: <span id="appVersion">―</span></span>
   <button class="btn secondary small" onclick="forceReload()">最新に更新</button>
+  <button class="btn secondary small" type="button" onclick="toggleChangelog()">更新履歴</button>
+  <div id="changelog" style="display:none;width:100%;margin-top:.6rem;text-align:left;font-size:0.8rem;line-height:1.7;color:var(--muted);"></div>
 </footer>
 
 <script>
@@ -2050,10 +2052,9 @@ else { showPage('daily'); }
     if (minRow) body.appendChild(minRow);
   }
 
-  // 「○分実践してください」案内
+  // 実践の案内（目安5〜10分・実施時間の記録欄とは分離）
   function renderDoStep(host) {
     const sug = state.currentSuggestion || {};
-    const min = (byId('actMin') && byId('actMin').value) || '10〜20';
     let actName = null;
     if (sug.activity) actName = `${sug.activity.code} ${sug.activity.name}`;
     else { const sel = byId('actDoing'); if (sel && sel.value) { const a = ACTIVITIES.find(x => x.code === sel.value); if (a) actName = `${a.code} ${a.name}`; } }
@@ -2063,7 +2064,7 @@ else { showPage('daily'); }
       return;
     }
     host.innerHTML = `<h3 style="color:var(--gold);margin:0 0 .6rem;">実践しましょう</h3>
-      <p style="font-size:1.1rem;line-height:2;">${actName ? `「<b>${actName}</b>」` : '選んだ活動'} を <b>${min}分</b> ほど行ってください。</p>
+      <p style="font-size:1.1rem;line-height:2;">${actName ? `「<b>${actName}</b>」` : '選んだ活動'} を、<b>5分から10分</b> くらいを目安に、自分のペースでやってみよう。</p>
       <p style="font-size:0.92rem;color:var(--muted);line-height:1.7;">終わったら「次へ」を押して、直後の計測に進みます。</p>`;
   }
 
@@ -2297,10 +2298,27 @@ else { showPage('daily'); }
 
 <!-- ====== バージョン管理＋更新（A:更新ボタン / B:バージョン表示 / C:起動時に最新チェック） ====== -->
 <script>
-const APP_VERSION = '2026.06.25-6';
+const APP_VERSION = '2026.06.29-0855';
+// 更新履歴（新しい順）。番号＝年.月.日-時分。各更新で「いつ・何を変えたか」を残す。
+const APP_CHANGELOG = [
+  { v: '2026.06.29-0855', at: '2026年6月29日 08:55', note: '活動の実践案内を「5分から10分くらいを目安に、自分のペースで」に変更。実施時間欄を「実際にやった時間」の記録専用に整理（初期値7分）。' },
+  { v: '2026.06.25-6', at: '2026年6月25日', note: '本日の予報を1問ずつ化＋7件法を全幅の縦並びタップ式に変更。' },
+];
+window.toggleChangelog = function () {
+  const box = document.getElementById('changelog');
+  if (!box) return;
+  if (box.style.display === 'none') {
+    box.innerHTML = APP_CHANGELOG.map(c =>
+      `<div style="margin-bottom:.5rem;"><b>${c.v}</b>（${c.at}）<br>${c.note}</div>`).join('');
+    box.style.display = 'block';
+  } else {
+    box.style.display = 'none';
+  }
+};
 (function () {
+  const cur = APP_CHANGELOG[0] || { v: APP_VERSION, at: '' };
   const vEl = document.getElementById('appVersion');
-  if (vEl) vEl.textContent = APP_VERSION;
+  if (vEl) vEl.textContent = cur.at ? `${cur.v}（${cur.at} 更新）` : cur.v;
 
   // 更新ボタン：配布URLの ?k=・?id= を保ったまま、キャッシュを回避して再読み込み
   window.forceReload = function () {
