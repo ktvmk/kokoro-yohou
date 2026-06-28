@@ -461,7 +461,7 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 <h3>研究代表者・共同研究者</h3>
 <ul style="font-size:0.95rem;">
 <li>研究代表者：森 浩平（三重大学教育学部 特別支援教育講座 准教授）</li>
-<li>共同研究者：三重ジュニアドクター育成塾 第二期生</li>
+<li>共同研究者：須永 光玲（三重ジュニアドクター育成塾 第二期生）</li>
 </ul>
 
 <h3>研究の流れ（15日間）</h3>
@@ -482,21 +482,23 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 <h3>Day 1 にお渡しする研究セット</h3>
 <div class="checklist" id="kitChecklist">
 <label><input type="checkbox" data-kit="coloring">塗り絵冊子（市販品）を受け取った</label>
-<label><input type="checkbox" data-kit="origami">折り紙（折り方ガイド付き市販パック）を受け取った</label>
-<label><input type="checkbox" data-kit="puzzle">ナンプレ冊子（市販品）を受け取った</label>
+<label><input type="checkbox" data-kit="origamiGuide">折り紙の折り方を受け取った</label>
+<label><input type="checkbox" data-kit="origami">折り紙を受け取った</label>
+<label><input type="checkbox" data-kit="puzzle">ナンプレ冊子を受け取った</label>
 <label><input type="checkbox" data-kit="diary">日記テンプレート A6 × 15枚を受け取った</label>
-<label><input type="checkbox" data-kit="goodThings">今日の良いことテンプレート A6 × 15枚を受け取った</label>
-<label><input type="checkbox" data-kit="cards">活動カード 16枚（A4・1活動1枚）を受け取った</label>
+<label><input type="checkbox" data-kit="goodThings">今日の良いことテンプレートを受け取った</label>
+<label><input type="checkbox" data-kit="cards">活動カードを受け取った</label>
 <label><input type="checkbox" data-kit="bp">手首式血圧計を受け取った</label>
 </div>
 <p class="note">チェック状態はこの端末のlocalStorageに保存されます（Day 1の配布物確認用）。</p>
 <div class="info-grid">
 <div class="metric-card"><span>塗り絵冊子（市販品）</span><span class="v">📒</span></div>
-<div class="metric-card"><span>折り紙（市販パック）</span><span class="v">📒</span></div>
-<div class="metric-card"><span>ナンプレ冊子（市販品）</span><span class="v">📒</span></div>
+<div class="metric-card"><span>折り紙の折り方</span><span class="v">📒</span></div>
+<div class="metric-card"><span>折り紙</span><span class="v">📒</span></div>
+<div class="metric-card"><span>ナンプレ冊子</span><span class="v">📒</span></div>
 <div class="metric-card"><span>日記テンプレ A6 × 15枚</span><span class="v">📒</span></div>
-<div class="metric-card"><span>今日の良いことテンプレ A6 × 15枚</span><span class="v">📒</span></div>
-<div class="metric-card"><span>活動カード 16枚 (A4)</span><span class="v">📒</span></div>
+<div class="metric-card"><span>今日の良いことテンプレ</span><span class="v">📒</span></div>
+<div class="metric-card"><span>活動カード</span><span class="v">📒</span></div>
 <div class="metric-card"><span>手首式血圧計</span><span class="v">🩺</span></div>
 </div>
 
@@ -2295,7 +2297,7 @@ else { showPage('daily'); }
 
 <!-- ====== バージョン管理＋更新（A:更新ボタン / B:バージョン表示 / C:起動時に最新チェック） ====== -->
 <script>
-const APP_VERSION = '2026.06.25-4';
+const APP_VERSION = '2026.06.25-5';
 (function () {
   const vEl = document.getElementById('appVersion');
   if (vEl) vEl.textContent = APP_VERSION;
