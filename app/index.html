@@ -1253,6 +1253,24 @@ function getParticipantTerm() {
   return (state.consent && state.consent.term) || 'T1';
 }
 
+// 各タームの配布日（Day 1）。この日を起点に Day をカレンダーで算出する。
+// ※ T2 はターム開始時に実日付を追記すること（未設定なら同意日を起点にフォールバック）。
+const TERM_START = { T1: '2026-06-29' };
+// 翌日モードへの切替時刻（時）。0時ちょうどだと記録中に日付が変わる事故が起きるため午前4時に設定。
+// → 深夜0:00〜3:59の記録は前日扱い（救済）／新モードは早朝4:00から（17時の記録窓に余裕で間に合う）。
+const DAY_ROLLOVER_HOUR = 4;
+function computeDay() {
+  const term = getParticipantTerm();
+  const startStr = TERM_START[term] || (state.consent && state.consent.date);
+  if (!startStr) return state.day || 1;
+  const s = new Date(startStr);
+  const start = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+  const now = new Date(Date.now() - DAY_ROLLOVER_HOUR * 3600000); // 切替時刻ぶん戻す
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diff = Math.round((today - start) / 86400000);
+  return Math.min(15, Math.max(1, diff + 1));
+}
+
 function getCurrentPhase(day) {
   const term = getParticipantTerm();
   if (day === 1) return 'prep';
@@ -1281,6 +1299,7 @@ function generateSuggestion() {
     state.survey = { prefs: {} };  // デモ：事前未回答でも本日のおすすめをサンプル表示
   }
   const term = getParticipantTerm();
+  state.day = computeDay();
   const phase = getCurrentPhase(state.day);
   const mood = rv('homeMood', 0);
   const stress = rv('homeStress', 3);
@@ -1409,6 +1428,7 @@ function summarizePanas(panas) {
 }
 
 function submitDaily() {
+  state.day = computeDay();
   const sources = Array.from(document.querySelectorAll('input[name="stressSource"]:checked')).map(el => el.value);
   const suggestion = state.currentSuggestion || null;
   const rec = {
@@ -1449,11 +1469,10 @@ function submitDaily() {
   };
   rec.memo = document.getElementById('dailyMemo').value;
   state.records.push(rec);
-  state.day = Math.min(15, state.day + 1);
   saveState();
   sendData('daily', flattenRecord(rec));   // ★日次記録をサーバーへ送信
   updateDayPill();
-  alert(`Day ${rec.day} の記録を保存しました。次の日へ進みます（現在 Day ${state.day}）`);
+  alert(`Day ${rec.day}（${PHASE_LABEL[rec.phase]}）の記録を保存しました。ありがとうございました。`);
   showPage('graphs');
 }
 
@@ -1627,6 +1646,7 @@ function withdrawData(type) {
 // 起動
 // ============================================================
 function updateDayPill() {
+  state.day = computeDay();
   document.getElementById('dayPill').textContent = `Day ${state.day} / 15`;
   document.getElementById('phaseTag').textContent = `フェーズ: ${PHASE_LABEL[getCurrentPhase(state.day)]}`;
   if (state.consent) {
@@ -2299,7 +2319,7 @@ else { showPage('daily'); }
 
 <!-- ====== バージョン管理＋更新（A:更新ボタン / B:バージョン表示 / C:起動時に最新チェック） ====== -->
 <script>
-const APP_VERSION = '2026.06.29-0946';
+const APP_VERSION = '2026.06.30-2250';
 (function () {
   const vEl = document.getElementById('appVersion');
   if (vEl) vEl.textContent = APP_VERSION;
