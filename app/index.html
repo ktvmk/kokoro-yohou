@@ -367,6 +367,12 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
   flex-wrap: wrap; font-size: 0.8rem; color: var(--muted);
 }
 .app-version .btn { padding: 0.35rem 1rem; font-size: 0.8rem; }
+.sync-footer-status {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.25rem 0.65rem; border-radius: 999px;
+  background: rgba(255,255,255,0.12); color: #fff;
+  border: 1px solid rgba(255,255,255,0.22); font-weight: 700;
+}
 /* 新バージョン検知バナー（上部固定） */
 .update-banner {
   position: fixed; top: 0; left: 0; right: 0; z-index: 10000;
@@ -818,6 +824,8 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 
 <footer class="app-version">
   <span>バージョン: <span id="appVersion">―</span></span>
+  <span class="sync-footer-status" id="syncQueueStatus">送信状況: 確認中</span>
+  <button class="btn secondary small" id="syncRetryBtn" onclick="retrySyncNow()">今すぐ再送</button>
   <button class="btn secondary small" onclick="forceReload()">最新に更新</button>
 </footer>
 
@@ -1427,53 +1435,63 @@ function summarizePanas(panas) {
   };
 }
 
-function submitDaily() {
-  state.day = computeDay();
-  const sources = Array.from(document.querySelectorAll('input[name="stressSource"]:checked')).map(el => el.value);
-  const suggestion = state.currentSuggestion || null;
-  const rec = {
-    day: state.day,
-    date: new Date().toISOString().slice(0, 10),
-    phase: getCurrentPhase(state.day),
-    term: getParticipantTerm(),
-    suggestion: suggestion ? {
-      condition: suggestion.condition || getCurrentPhase(state.day),
-      activity: suggestion.activity ? suggestion.activity.code : null,
-      category: suggestion.category || (suggestion.activity ? suggestion.activity.category : null),
-      ruleCode: suggestion.ruleCode || null,
-      stateInputs: suggestion.stateInputs || null,
-      reasonText: (suggestion.reason || '').replace(/<[^>]+>/g, ' '),
-    } : null,
-    pre: {
-      mood: rv('prMood', 0),
-      stress: rv('prStress', 3),
-      fatigue: rv('prFatigue', 3),
-      anger: rv('prAnger', 3),
-      anxiety: rv('prAnx', 3),
-      sleep: document.getElementById('prSleep') ? parseFloat(document.getElementById('prSleep').value) : null,
-      stressSources: sources,
-    },
-    panas_pre: collectPanas('pre'),
-    activity: document.getElementById('actDoing').value,
-    minutes: parseInt(document.getElementById('actMin').value),
-    bp_pre: { pulse: document.getElementById('bpPreP').value, sys: document.getElementById('bpPreS').value, dia: document.getElementById('bpPreD').value },
-    bp_post: { pulse: document.getElementById('bpPostP').value, sys: document.getElementById('bpPostS').value, dia: document.getElementById('bpPostD').value },
-    bp_5min: { pulse: document.getElementById('bp5P').value, sys: document.getElementById('bp5S').value, dia: document.getElementById('bp5D').value },
-    post: { mood: rv('postMood', 0), stress: rv('postStress', 3), eff: rv('postEff', 3) },
-    panas_post: collectPanas('post'),
-    after5: { stress: rv('m5Stress', 3), pleasant: rv('m5Pleasant', 3) },
-  };
-  rec.panas_summary = {
-    pre: summarizePanas(rec.panas_pre),
-    post: summarizePanas(rec.panas_post),
-  };
-  rec.memo = document.getElementById('dailyMemo').value;
-  state.records.push(rec);
-  saveState();
-  sendData('daily', flattenRecord(rec));   // ★日次記録をサーバーへ送信
-  updateDayPill();
-  alert(`Day ${rec.day}（${PHASE_LABEL[rec.phase]}）の記録を保存しました。ありがとうございました。`);
-  showPage('graphs');
+async function submitDaily() {
+  if (window._dailySubmitInProgress) return;
+  window._dailySubmitInProgress = true;
+  try {
+    state.day = computeDay();
+    const sources = Array.from(document.querySelectorAll('input[name="stressSource"]:checked')).map(el => el.value);
+    const suggestion = state.currentSuggestion || null;
+    const rec = {
+      day: state.day,
+      date: new Date().toISOString().slice(0, 10),
+      phase: getCurrentPhase(state.day),
+      term: getParticipantTerm(),
+      suggestion: suggestion ? {
+        condition: suggestion.condition || getCurrentPhase(state.day),
+        activity: suggestion.activity ? suggestion.activity.code : null,
+        category: suggestion.category || (suggestion.activity ? suggestion.activity.category : null),
+        ruleCode: suggestion.ruleCode || null,
+        stateInputs: suggestion.stateInputs || null,
+        reasonText: (suggestion.reason || '').replace(/<[^>]+>/g, ' '),
+      } : null,
+      pre: {
+        mood: rv('prMood', 0),
+        stress: rv('prStress', 3),
+        fatigue: rv('prFatigue', 3),
+        anger: rv('prAnger', 3),
+        anxiety: rv('prAnx', 3),
+        sleep: document.getElementById('prSleep') ? parseFloat(document.getElementById('prSleep').value) : null,
+        stressSources: sources,
+      },
+      panas_pre: collectPanas('pre'),
+      activity: document.getElementById('actDoing').value,
+      minutes: parseInt(document.getElementById('actMin').value),
+      bp_pre: { pulse: document.getElementById('bpPreP').value, sys: document.getElementById('bpPreS').value, dia: document.getElementById('bpPreD').value },
+      bp_post: { pulse: document.getElementById('bpPostP').value, sys: document.getElementById('bpPostS').value, dia: document.getElementById('bpPostD').value },
+      bp_5min: { pulse: document.getElementById('bp5P').value, sys: document.getElementById('bp5S').value, dia: document.getElementById('bp5D').value },
+      post: { mood: rv('postMood', 0), stress: rv('postStress', 3), eff: rv('postEff', 3) },
+      panas_post: collectPanas('post'),
+      after5: { stress: rv('m5Stress', 3), pleasant: rv('m5Pleasant', 3) },
+    };
+    rec.panas_summary = {
+      pre: summarizePanas(rec.panas_pre),
+      post: summarizePanas(rec.panas_post),
+    };
+    rec.memo = document.getElementById('dailyMemo').value;
+    state.records.push(rec);
+    saveState();
+    const result = await sendData('daily', flattenRecord(rec));   // ★日次記録をサーバーへ送信
+    updateDayPill();
+    if (result && result.ok) {
+      alert(`Day ${rec.day}（${PHASE_LABEL[rec.phase]}）の記録をサーバーに送信できました。ありがとうございました。`);
+    } else {
+      alert(`Day ${rec.day}（${PHASE_LABEL[rec.phase]}）の記録をこの端末に保存しました。電波が不安定なため、後ほど自動で送信します（アプリを開いたままにしておくと送信されます）。`);
+    }
+    showPage('graphs');
+  } finally {
+    window._dailySubmitInProgress = false;
+  }
 }
 
 // ============================================================
@@ -1774,6 +1792,7 @@ const SYNC = {
   endpoint: 'https://script.google.com/macros/s/AKfycbzrZlja4jYIJNfJ8Ngpo2Vn6FhBSkRXlYdhX1Lk0s4_gDdl-kdql45en15tYdbXrZQB/exec',
   token:    _kparams.get('k') || localStorage.getItem('kokoroToken') || '',
   queueKey: 'kokoroSyncQueue',
+  requestTimeoutMs: 15000,
 };
 
 function flattenRecord(r) {
@@ -1813,45 +1832,106 @@ function flattenRecord(r) {
   };
 }
 
-function _readQueue()  { return JSON.parse(localStorage.getItem(SYNC.queueKey) || '[]'); }
-function _writeQueue(q){ localStorage.setItem(SYNC.queueKey, JSON.stringify(q)); }
+function _queueItemKey(it) {
+  return (it && it.kind ? it.kind : '') + '|' + ((it && it.record && it.record.clientRecordId) || '');
+}
+function _dedupeQueue(items) {
+  const byKey = new Map();
+  (items || []).forEach(it => {
+    if (it && it.kind && it.record) byKey.set(_queueItemKey(it), it);
+  });
+  return Array.from(byKey.values());
+}
+function _readQueue() {
+  try { return JSON.parse(localStorage.getItem(SYNC.queueKey) || '[]'); }
+  catch (e) { console.warn('[sync] queue parse error:', e.message); return []; }
+}
+function _writeQueue(q){
+  localStorage.setItem(SYNC.queueKey, JSON.stringify(_dedupeQueue(q)));
+  updateSyncQueueIndicator();
+}
 function enqueueKind(kind, record) {
   if (!record) return;
   const key = kind + '|' + (record.clientRecordId || '');
-  const q = _readQueue().filter(x => (x.kind + '|' + ((x.record && x.record.clientRecordId) || '')) !== key);
+  const q = _readQueue().filter(x => _queueItemKey(x) !== key);
   q.push({ kind: kind, record: record });
   _writeQueue(q);
 }
 
 async function postKind(kind, record) {
   if (!SYNC.token) throw new Error('トークン未設定（配布URLから開いてください）');
-  const res = await fetch(SYNC.endpoint, {
+  const request = {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ token: SYNC.token, kind: kind, record: record }),
-  });
-  const data = await res.json();
+  };
+  const timeoutError = () => new Error('送信がタイムアウトしました');
+  const parseJson = async res => {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    try { return await res.json(); }
+    catch (e) { throw new Error('サーバー応答をJSONとして読み取れませんでした'); }
+  };
+  let data;
+  if (typeof AbortController === 'undefined') {
+    data = await Promise.race([
+      fetch(SYNC.endpoint, request).then(parseJson),
+      new Promise((_, reject) => setTimeout(() => reject(timeoutError()), SYNC.requestTimeoutMs)),
+    ]);
+  } else {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), SYNC.requestTimeoutMs);
+    try {
+      const res = await fetch(SYNC.endpoint, Object.assign({}, request, { signal: controller.signal }));
+      data = await parseJson(res);
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw timeoutError();
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
   if (!data.ok) throw new Error(data.error || 'server');
   return data;
 }
 
 // 入力完了ボタンで呼ばれる送信。ここだけ画面に状態を表示する。
 async function sendData(kind, record) {
-  if (!record) return;
+  if (!record) return { ok: true, skipped: true };
   setSyncStatus('sending');
-  try { await postKind(kind, record); await flushQueue(true); setSyncStatus('ok'); }
-  catch (e) { enqueueKind(kind, record); setSyncStatus('pending'); console.warn('[sync] ' + kind + ' → キュー:', e.message); }
+  try {
+    await postKind(kind, record);
+    await flushQueue(true);
+    setSyncStatus(_readQueue().length ? 'pending' : 'ok');
+    return { ok: true };
+  }
+  catch (e) {
+    enqueueKind(kind, record);
+    setSyncStatus('pending');
+    console.warn('[sync] ' + kind + ' → キュー:', e.message);
+    return { ok: false, queued: true, error: e };
+  }
 }
 
 // silent=true（自動再送）のときは画面に何も出さない。表示は入力完了ボタン時のみ。
 async function flushQueue(silent) {
   const q = _readQueue();
-  if (!q.length) return;
+  updateSyncQueueIndicator();
+  if (!q.length) {
+    if (!silent) setSyncStatus('ok');
+    return { ok: true, pending: 0 };
+  }
   if (!silent) setSyncStatus('sending');
   const rest = [];
-  for (const it of q) { try { await postKind(it.kind, it.record); } catch (e) { rest.push(it); } }
-  _writeQueue(rest);
-  if (!silent) setSyncStatus(rest.length ? 'pending' : 'ok');
+  const originalKeys = new Set(q.map(_queueItemKey));
+  for (const it of q) {
+    try { await postKind(it.kind, it.record); }
+    catch (e) { rest.push(it); }
+  }
+  const additions = _readQueue().filter(it => !originalKeys.has(_queueItemKey(it)));
+  const next = _dedupeQueue(rest.concat(additions));
+  _writeQueue(next);
+  if (!silent) setSyncStatus(next.length ? 'pending' : 'ok');
+  return { ok: !next.length, pending: next.length };
 }
 
 // 送信状態を画面上部に表示（送信中／成功／未送信）
@@ -1868,6 +1948,37 @@ function setSyncStatus(state) {
   if (state === 'sending')      { el.textContent = '送信しています…';                       el.style.background = '#fff3cd'; el.style.color = '#664d03'; }
   else if (state === 'ok')      { el.textContent = '✓ 送信できました';                       el.style.background = '#d1e7dd'; el.style.color = '#0f5132'; el._timer = setTimeout(() => { el.style.opacity = '0'; }, 2500); }
   else if (state === 'pending') { el.textContent = '⚠ 未送信です（自動で再送します）';        el.style.background = '#f8d7da'; el.style.color = '#842029'; }
+  updateSyncQueueIndicator();
+}
+
+function updateSyncQueueIndicator() {
+  const el = document.getElementById('syncQueueStatus');
+  const btn = document.getElementById('syncRetryBtn');
+  const count = _readQueue().length;
+  if (el) {
+    el.textContent = count ? `送信状況: 未送信 ${count}件` : '送信状況: すべて送信済み';
+    el.style.background = count ? 'rgba(248,215,218,0.22)' : 'rgba(209,231,221,0.22)';
+    el.style.borderColor = count ? 'rgba(248,215,218,0.65)' : 'rgba(209,231,221,0.65)';
+  }
+  if (btn) {
+    btn.disabled = count === 0;
+    btn.textContent = count ? '今すぐ再送' : '再送する記録なし';
+    btn.style.opacity = count ? '1' : '0.65';
+  }
+}
+
+async function retrySyncNow() {
+  const btn = document.getElementById('syncRetryBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '再送中…';
+  }
+  try {
+    if (state.consent && state.consent.pid) await syncAll(false);
+    else await flushQueue(false);
+  } finally {
+    updateSyncQueueIndicator();
+  }
 }
 
 /* 同意（ID＋メールアドレスを記録。氏名は収集しない＝IDで管理。リマインド送信用にメールは収集）*/
@@ -1903,17 +2014,17 @@ function flattenSurveyPost() {
 
 /* 起動時：未送信の全データ（同意・事前・事後・日次）をまとめて回収。
    サーバー側 clientRecordId で上書き(upsert)するため、毎回送っても重複しない */
-async function syncAll() {
+async function syncAll(silent = true) {
   if (!(state.consent && state.consent.pid)) return;
   enqueueKind('consent', flattenConsent());
   enqueueKind('survey_pre', flattenSurveyPre());
   enqueueKind('survey_post', flattenSurveyPost());
   (state.records || []).forEach(r => enqueueKind('daily', flattenRecord(r)));
-  await flushQueue(true);   // 起動時の回収はサイレント
+  await flushQueue(silent);   // 起動時の回収はサイレント
 }
 
 window.addEventListener('online', () => flushQueue(true));
-window.addEventListener('load', () => setTimeout(syncAll, 1500));
+window.addEventListener('load', () => { updateSyncQueueIndicator(); setTimeout(syncAll, 1500); });
 // 20秒ごとに未送信キューを自動再送（サイレント・取りこぼし防止の保険）
 setInterval(() => { if (_readQueue().length) flushQueue(true); }, 20000);
 // 画面を離れる/隠す直前にも再送を試みる（サイレント）
@@ -2319,7 +2430,7 @@ else { showPage('daily'); }
 
 <!-- ====== バージョン管理＋更新（A:更新ボタン / B:バージョン表示 / C:起動時に最新チェック） ====== -->
 <script>
-const APP_VERSION = '2026.06.30-2250';
+const APP_VERSION = '2026.06.30-2330-send-reliability';
 (function () {
   const vEl = document.getElementById('appVersion');
   if (vEl) vEl.textContent = APP_VERSION;
