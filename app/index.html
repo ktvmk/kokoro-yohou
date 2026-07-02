@@ -1858,6 +1858,32 @@ function enqueueKind(kind, record) {
   _writeQueue(q);
 }
 
+// ===== 送信済み台帳（ack） =====
+// syncAll が毎回全記録をキューへ積み直す設計だと、送信が終わるまで
+// 「未送信N件」と表示され、既に届いている記録まで失敗に見える。
+// サーバー受理済みの記録は内容が変わらない限り再enqueueしない。
+const ACK_KEY = 'kokoroSentAckV1';
+function _recordSig(record) {
+  const s = JSON.stringify(record);
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return s.length + ':' + h;
+}
+function _readAck() {
+  try { return JSON.parse(localStorage.getItem(ACK_KEY) || '{}'); }
+  catch (e) { return {}; }
+}
+function _markAcked(kind, record) {
+  if (!record) return;
+  const a = _readAck();
+  a[kind + '|' + (record.clientRecordId || '')] = _recordSig(record);
+  try { localStorage.setItem(ACK_KEY, JSON.stringify(a)); } catch (e) {}
+}
+function _isAcked(kind, record) {
+  if (!record) return false;
+  return _readAck()[kind + '|' + (record.clientRecordId || '')] === _recordSig(record);
+}
+
 async function postKind(kind, record) {
   if (!SYNC.token) throw new Error('トークン未設定（配布URLから開いてください）');
   const request = {
@@ -1891,6 +1917,7 @@ async function postKind(kind, record) {
     }
   }
   if (!data.ok) throw new Error(data.error || 'server');
+  _markAcked(kind, record);
   return data;
 }
 
@@ -1923,9 +1950,15 @@ async function flushQueue(silent) {
   if (!silent) setSyncStatus('sending');
   const rest = [];
   const originalKeys = new Set(q.map(_queueItemKey));
+  let done = 0;
   for (const it of q) {
+    if (!silent) {
+      const btn = document.getElementById('syncRetryBtn');
+      if (btn) btn.textContent = `再送中… ${done + 1}/${q.length}`;
+    }
     try { await postKind(it.kind, it.record); }
     catch (e) { rest.push(it); }
+    done++;
   }
   const additions = _readQueue().filter(it => !originalKeys.has(_queueItemKey(it)));
   const next = _dedupeQueue(rest.concat(additions));
@@ -2016,10 +2049,11 @@ function flattenSurveyPost() {
    サーバー側 clientRecordId で上書き(upsert)するため、毎回送っても重複しない */
 async function syncAll(silent = true) {
   if (!(state.consent && state.consent.pid)) return;
-  enqueueKind('consent', flattenConsent());
-  enqueueKind('survey_pre', flattenSurveyPre());
-  enqueueKind('survey_post', flattenSurveyPost());
-  (state.records || []).forEach(r => enqueueKind('daily', flattenRecord(r)));
+  const maybe = (kind, rec) => { if (rec && !_isAcked(kind, rec)) enqueueKind(kind, rec); };
+  maybe('consent', flattenConsent());
+  maybe('survey_pre', flattenSurveyPre());
+  maybe('survey_post', flattenSurveyPost());
+  (state.records || []).forEach(r => maybe('daily', flattenRecord(r)));
   await flushQueue(silent);   // 起動時の回収はサイレント
 }
 
@@ -2126,6 +2160,69 @@ else { showPage('daily'); }
   const rowOf = id => { const e = byId(id); return e ? e.closest('.scale-row') : null; };
   const q7Of = name => { const b = byId(name + '_box'); return b ? b.closest('.q7') : null; }; // 7件法ブロック
 
+  // ===== 回答の下書き自動保存 =====
+  // タイマー・血圧計・他アプリに切り替えている間にページが破棄・再読み込みされても、
+  // 入力途中の回答と現在の設問位置を復元する（日次は同じ日の下書きのみ有効）。
+  const DRAFT_KEY = 'kokoroDraftV1';
+  function _readDraft() {
+    try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}'); }
+    catch (e) { return {}; }
+  }
+  function _writeDraft(d) {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch (e) {}
+  }
+  function _collectFields(pageId) {
+    const page = byId(pageId);
+    if (!page) return null;
+    const f = { radios: {}, values: {}, checks: {} };
+    page.querySelectorAll('input[type="radio"]').forEach(r => { if (r.checked && r.name) f.radios[r.name] = r.value; });
+    page.querySelectorAll('select, textarea, input[type="number"], input[type="text"], input[type="email"], input[type="date"]').forEach(el => { if (el.id) f.values[el.id] = el.value; });
+    page.querySelectorAll('input[type="checkbox"]').forEach(el => {
+      const k = el.id || (el.name ? el.name + '#' + el.value : '');
+      if (k) f.checks[k] = el.checked;
+    });
+    return f;
+  }
+  function _applyFields(pageId, f) {
+    const page = byId(pageId);
+    if (!page || !f) return;
+    Object.entries(f.radios || {}).forEach(([name, val]) => {
+      page.querySelectorAll('input[type="radio"][name="' + name + '"]').forEach(r => { r.checked = (r.value === String(val)); });
+    });
+    Object.entries(f.values || {}).forEach(([id, val]) => { const el = byId(id); if (el && val != null) el.value = val; });
+    Object.entries(f.checks || {}).forEach(([k, val]) => {
+      let el = byId(k);
+      if (!el && k.indexOf('#') >= 0) {
+        const parts = k.split('#');
+        el = page.querySelector('input[type="checkbox"][name="' + parts[0] + '"][value="' + parts[1] + '"]');
+      }
+      if (el) el.checked = val;
+    });
+  }
+  function _saveDraftNow() {
+    const d = _readDraft();
+    const today = computeDay();
+    if (!(state.records || []).some(r => r.day === today)) d.daily = { day: today, fields: _collectFields('daily') };
+    if (!state.survey) d.survey = _collectFields('survey');
+    if (!state.postSurvey) d.postSurvey = _collectFields('postSurvey');
+    d.wizIdx = d.wizIdx || {};
+    // 設問位置は対応する下書きがあるときだけ保存（位置だけ残ると空欄のまま途中再開になる）
+    Object.keys(WIZ).forEach(k => { if (WIZ[k].built && d[k]) d.wizIdx[k] = WIZ[k].idx; });
+    d.savedAt = new Date().toISOString();
+    _writeDraft(d);
+  }
+  let _draftTimer = null;
+  function _saveDraftSoon() { clearTimeout(_draftTimer); _draftTimer = setTimeout(_saveDraftNow, 500); }
+  function _clearDraft(id) {
+    const d = _readDraft();
+    delete d[id];
+    if (d.wizIdx) delete d.wizIdx[id];
+    _writeDraft(d);
+  }
+  document.addEventListener('change', e => { if (e.target && e.target.closest && e.target.closest('.page')) _saveDraftNow(); });
+  document.addEventListener('input',  e => { if (e.target && e.target.closest && e.target.closest('.page')) _saveDraftSoon(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _saveDraftNow(); });
+
   // --- 各アンケートの設問ステップを組み立てる（既存DOMから収集） ---
   function buildSurveySteps() {
     const s = [];
@@ -2157,11 +2254,17 @@ else { showPage('daily'); }
      ['homeAnger','prAnger'],['homeAnxiety','prAnx']].forEach(([h, pr]) => sv(h, rv(pr)));
     const ps = byId('prSleep'), hs = byId('homeSleep'); if (ps && hs) hs.value = ps.value;
     const cfg = WIZ.daily;
-    if (cfg._assignedDay !== state.day) {
+    // 1日1回確定：割り当て後にページを再読み込みしても同じ日の割り当ては変えない
+    const locked = state.currentSuggestion && state.currentSuggestionDay === state.day;
+    if (cfg._assignedDay !== state.day && !locked) {
       generateSuggestion();          // state.currentSuggestion を確定（activityなら #actDoing もセット）
-      cfg._assignedDay = state.day;
+      state.currentSuggestionDay = state.day;
+      saveState();
     }
+    cfg._assignedDay = state.day;
     const sug = state.currentSuggestion || {};
+    const actSel = byId('actDoing');
+    if (sug.activity && actSel && !actSel.value) actSel.value = sug.activity.code;
     const body = host.querySelector('#wizAssignBody');
     let html;
     if (sug.activity) {
@@ -2326,9 +2429,17 @@ else { showPage('daily'); }
     cfg.next.textContent = last ? cfg.submitLabel : '次へ ▶';
     cfg.next.onclick = () => {
       if (!step.noValidate && !isStepAnswered(step.el)) { showWarn(cfg); return; }   // 記入しないと進めない
-      if (last) { cfg.idx = 0; cfg.submit(); }
+      if (last) { if (cfg.id) _clearDraft(cfg.id); cfg.idx = 0; cfg.submit(); }
       else { cfg.idx++; render(cfg); }
     };
+    if (cfg.id) {   // 現在の設問位置を下書きに保存（対応する回答下書きがあるときだけ）
+      const d = _readDraft();
+      if (d[cfg.id]) {
+        d.wizIdx = d.wizIdx || {};
+        d.wizIdx[cfg.id] = cfg.idx;
+        _writeDraft(d);
+      }
+    }
     const slotTop = cfg.slot.getBoundingClientRect().top + window.scrollY - 90;
     window.scrollTo({ top: Math.max(0, slotTop), behavior: 'smooth' });
   }
@@ -2336,6 +2447,7 @@ else { showPage('daily'); }
   function startWiz(id) {
     const cfg = WIZ[id];
     if (!cfg) return;
+    cfg.id = id;
     const page = byId(id);
     if (!cfg.built) {
       cfg.steps = cfg.build();
@@ -2360,6 +2472,10 @@ else { showPage('daily'); }
       page.appendChild(buildShell(cfg));
       cfg.built = true;
       cfg.idx = 0;
+      const saved = _readDraft();   // 下書きがあれば前回の設問位置から再開
+      if (saved.wizIdx && Number.isInteger(saved.wizIdx[id])) {
+        cfg.idx = Math.min(Math.max(0, saved.wizIdx[id]), cfg.steps.length - 1);
+      }
     }
     render(cfg);
   }
@@ -2415,6 +2531,27 @@ else { showPage('daily'); }
   }
   window.startHomeForecast = startHomeForecast;
 
+  // ===== 起動時：下書きの復元 =====
+  (function restoreDraft() {
+    const d = _readDraft();
+    if (!d || !Object.keys(d).length) return;
+    const today = computeDay();
+    const doneToday = (state.records || []).some(r => r.day === today);
+    if (d.daily && (d.daily.day !== today || doneToday)) {   // 前日の残り・送信済みの日の下書きは破棄
+      delete d.daily;
+      if (d.wizIdx) delete d.wizIdx.daily;
+    }
+    if (d.wizIdx) {   // 回答下書きのない設問位置は破棄（空欄のまま途中再開を防ぐ）
+      if (!d.daily) delete d.wizIdx.daily;
+      if (!d.survey || state.survey) delete d.wizIdx.survey;
+      if (!d.postSurvey || state.postSurvey) delete d.wizIdx.postSurvey;
+    }
+    _writeDraft(d);
+    if (d.daily && d.daily.fields) _applyFields('daily', d.daily.fields);
+    if (d.survey && !state.survey) _applyFields('survey', d.survey);
+    if (d.postSurvey && !state.postSurvey) _applyFields('postSurvey', d.postSurvey);
+  })();
+
   // showPage をラップして、3アンケート画面に来たらウィザードを起動・再描画
   const _origShowPage = window.showPage;
   window.showPage = function (id) {
@@ -2430,7 +2567,7 @@ else { showPage('daily'); }
 
 <!-- ====== バージョン管理＋更新（A:更新ボタン / B:バージョン表示 / C:起動時に最新チェック） ====== -->
 <script>
-const APP_VERSION = '2026.06.30-2330-send-reliability';
+const APP_VERSION = '2026.07.02-draft-autosave';
 (function () {
   const vEl = document.getElementById('appVersion');
   if (vEl) vEl.textContent = APP_VERSION;
