@@ -475,12 +475,11 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
 <tr style="background:rgba(0,0,0,0.3);"><th style="padding:6px;">Day</th><th>フェーズ</th><th>内容</th></tr>
 <tr><td style="padding:4px 8px; text-align:center;">1</td><td>配布日</td><td>説明会・事前アンケート・研究セット受け取り</td></tr>
-<tr style="background:rgba(255,255,255,0.05);"><td style="padding:4px 8px; text-align:center;">2-4</td><td><span class="suggestion-tag tag-self">自由選択</span></td><td>16活動から自分で選ぶ</td></tr>
-<tr><td style="padding:4px 8px; text-align:center;">5-7</td><td><span class="suggestion-tag tag-match">好み一致</span> / <span class="suggestion-tag tag-extend">発見的</span></td><td>T1は好み一致，T2は発見的（ターム間で順序反転）</td></tr>
-<tr style="background:rgba(255,255,255,0.05);"><td style="padding:4px 8px; text-align:center;">8</td><td><span class="suggestion-tag tag-rest">中継日</span></td><td>リマインドメールのみ（提案も実施もなし）</td></tr>
-<tr><td style="padding:4px 8px; text-align:center;">9-11</td><td><span class="suggestion-tag tag-extend">発見的</span> / <span class="suggestion-tag tag-match">好み一致</span></td><td>T1は発見的，T2は好み一致（ターム間で順序反転）</td></tr>
-<tr style="background:rgba(255,255,255,0.05);"><td style="padding:4px 8px; text-align:center;">12-14</td><td><span class="suggestion-tag tag-flexible">状態依存</span></td><td>その日の気分・ストレスに応じて提案</td></tr>
-<tr><td style="padding:4px 8px; text-align:center;">15</td><td>回収日</td><td>事後アンケート・計測器返却</td></tr>
+<tr style="background:rgba(255,255,255,0.05);"><td style="padding:4px 8px; text-align:center;">2-5</td><td><span class="suggestion-tag tag-self">自由選択</span></td><td>16活動から自分で選ぶ</td></tr>
+<tr><td style="padding:4px 8px; text-align:center;">6-8</td><td><span class="suggestion-tag tag-match">好み一致</span> / <span class="suggestion-tag tag-extend">発見的</span></td><td>T1は好み一致，T2は発見的（ターム間で順序反転）</td></tr>
+<tr style="background:rgba(255,255,255,0.05);"><td style="padding:4px 8px; text-align:center;">9-11</td><td><span class="suggestion-tag tag-extend">発見的</span> / <span class="suggestion-tag tag-match">好み一致</span></td><td>T1は発見的，T2は好み一致（ターム間で順序反転）</td></tr>
+<tr><td style="padding:4px 8px; text-align:center;">12-14</td><td><span class="suggestion-tag tag-flexible">状態依存</span></td><td>その日の気分・ストレスに応じて提案</td></tr>
+<tr style="background:rgba(255,255,255,0.05);"><td style="padding:4px 8px; text-align:center;">15</td><td>回収日</td><td>事後アンケート・計測器返却</td></tr>
 </table>
 </div>
 <p class="note">※ Day 2-14 の毎日17時に研究代表者からリマインドメール（BCC一斉送信）が届きます。</p>
@@ -550,7 +549,7 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 <h3>参加者情報</h3>
 <div class="scale-row"><span class="label">参加者ID（説明会で配布）</span><input type="text" id="participantId" placeholder="例：P01"><span></span></div>
 <div class="scale-row"><span class="label">実施ターム</span>
-<select id="participantTerm"><option value="T1">T1（Day 5-7 好み一致 → Day 9-11 発見的）</option><option value="T2">T2（Day 5-7 発見的 → Day 9-11 好み一致）</option></select>
+<select id="participantTerm"><option value="T1">T1（Day 6-8 好み一致 → Day 9-11 発見的）</option><option value="T2">T2（Day 6-8 発見的 → Day 9-11 好み一致）</option></select>
 <span></span></div>
 <div class="scale-row"><span class="label">メールアドレス</span><input type="email" id="participantEmail" placeholder="例：xxx@example.com"><span></span></div>
 <p class="note">※ メールアドレスは毎日17時のリマインド送信（BCC一斉送信）のみに使用します。研究終了後（論文公表後5年）に廃棄します。</p>
@@ -1282,9 +1281,10 @@ function computeDay() {
 function getCurrentPhase(day) {
   const term = getParticipantTerm();
   if (day === 1) return 'prep';
-  if (day >= 2 && day <= 4) return 'self';
-  if (day >= 5 && day <= 7) return term === 'T2' ? 'extend' : 'match';
-  if (day === 8) return 'rest';
+  // 案B（2026-07-02 先生決定）：初日6/30の不具合を受け自由選択をDay5(7/3)まで延長。
+  // 中継日(旧Day8)を廃止して終了日Day15(7/13)は当初案内のまま維持。
+  if (day >= 2 && day <= 5) return 'self';
+  if (day >= 6 && day <= 8) return term === 'T2' ? 'extend' : 'match';
   if (day >= 9 && day <= 11) return term === 'T2' ? 'match' : 'extend';
   if (day >= 12 && day <= 14) return 'flexible';
   if (day === 15) return 'final';
@@ -2567,7 +2567,7 @@ else { showPage('daily'); }
 
 <!-- ====== バージョン管理＋更新（A:更新ボタン / B:バージョン表示 / C:起動時に最新チェック） ====== -->
 <script>
-const APP_VERSION = '2026.07.02-draft-autosave';
+const APP_VERSION = '2026.07.02-schedule-b';
 (function () {
   const vEl = document.getElementById('appVersion');
   if (vEl) vEl.textContent = APP_VERSION;
