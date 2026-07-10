@@ -1441,6 +1441,25 @@ async function submitDaily() {
   window._dailySubmitInProgress = true;
   try {
     state.day = computeDay();
+    // --- 取りこぼし防止：提案が未確定のまま送信されるのを防ぐ（1日1回ロックは尊重）---
+    // 下書き復元等で割り当てステップ(assignDaily)を通らず送信すると、提案・活動が空で保存されていた。
+    if (!(state.currentSuggestion && state.currentSuggestionDay === state.day)) {
+      try {
+        // 活動前入力(pr*)をホーム(home*)へ写す＝flexible条件が参照するため（assignDailyと同処理）
+        [['homeMood','prMood'],['homeStress','prStress'],['homeFatigue','prFatigue'],
+         ['homeAnger','prAnger'],['homeAnxiety','prAnx']].forEach(([h,pr]) => sv(h, rv(pr)));
+        const _ps = document.getElementById('prSleep'), _hs = document.getElementById('homeSleep');
+        if (_ps && _hs) _hs.value = _ps.value;
+        generateSuggestion();
+        state.currentSuggestionDay = state.day;
+        saveState();
+      } catch (e) { console.warn('[submitDaily] suggestion fallback failed:', e && e.message); }
+    }
+    // 活動が空なら提案で埋める（提案のある日）
+    const _actEl = document.getElementById('actDoing');
+    if (_actEl && !_actEl.value && state.currentSuggestion && state.currentSuggestion.activity) {
+      _actEl.value = state.currentSuggestion.activity.code;
+    }
     const sources = Array.from(document.querySelectorAll('input[name="stressSource"]:checked')).map(el => el.value);
     const suggestion = state.currentSuggestion || null;
     const rec = {
@@ -1480,7 +1499,8 @@ async function submitDaily() {
       post: summarizePanas(rec.panas_post),
     };
     rec.memo = document.getElementById('dailyMemo').value;
-    state.records.push(rec);
+    // 同じ日の記録は最新1件へ上書き（グラフの同日重複・重複再送を防止／サーバーのUpsertと整合）
+    { const _di = state.records.findIndex(x => x.day === rec.day); if (_di >= 0) state.records[_di] = rec; else state.records.push(rec); }
     saveState();
     const result = await sendData('daily', flattenRecord(rec));   // ★日次記録をサーバーへ送信
     updateDayPill();
@@ -1499,7 +1519,9 @@ async function submitDaily() {
 // 振り返り
 // ============================================================
 function showGraphs() {
-  const recs = state.records;
+  // 表示は日ごとに最新1件へ集約（過去の重複記録でグラフ・件数が乱れるのを防ぐ／保存データは変更しない）
+  const _byDay = {}; (state.records || []).forEach(r => { _byDay[r.day] = r; });
+  const recs = Object.keys(_byDay).map(k => _byDay[k]).sort((a, b) => (a.day || 0) - (b.day || 0));
   document.getElementById('mDays').textContent = recs.length;
   if (recs.length === 0) {
     ['mMoodDelta','mStressDelta','mEff','mPaDelta','mNaDelta'].forEach(id => document.getElementById(id).textContent = '−');
@@ -1562,7 +1584,7 @@ function showGraphs() {
     </div>`;
   });
   document.getElementById('recordList').innerHTML = rec;
-  renderMoodLine('moodLineChart', state.records);   // ★準本番：気分推移の折れ線
+  renderMoodLine('moodLineChart', recs);   // ★準本番：気分推移の折れ線（日ごと集約後）
 }
 
 // ============================================================
@@ -2618,7 +2640,7 @@ else { showPage('daily'); }
 
 <!-- ====== バージョン管理＋更新（A:更新ボタン / B:バージョン表示 / C:起動時に最新チェック） ====== -->
 <script>
-const APP_VERSION = '2026.07.03-noid-guard';
+const APP_VERSION = '2026.07.10-capture-fix';
 (function () {
   const vEl = document.getElementById('appVersion');
   if (vEl) vEl.textContent = APP_VERSION;
