@@ -2180,7 +2180,9 @@ async function syncAll(silent = true) {
   maybe('consent', flattenConsent());
   maybe('survey_pre', flattenSurveyPre());
   maybe('survey_post', flattenSurveyPost());
-  (state.records || []).forEach(r => maybe('daily', flattenRecord(r)));
+  // サーバー由来の復元レコード(_fromServer)は再送しない。flattenRecordはpanas集計・提案メタを
+  // 復元できず空になるため、再送するとサーバー上の元データを空で上書きしてしまう（表示専用に留める）。
+  (state.records || []).forEach(r => { if (r && !r._fromServer) maybe('daily', flattenRecord(r)); });
   await flushQueue(silent);   // 起動時の回収はサイレント
 }
 
@@ -2251,6 +2253,7 @@ async function rehydrateFromServer(pid) {
     dailyRows.forEach(r => {
       const day = num(r.day); if (!day) return;
       byDay[day] = {
+        _fromServer: true,   // サーバー由来＝表示専用。syncAllで再送しない（元データの劣化上書き防止）
         day: day, date: r.date, phase: r.phase, term: r.term,
         pre: { mood: num(r.pre_mood) || 0, stress: num(r.pre_stress) || 0, fatigue: num(r.pre_fatigue), anger: num(r.pre_anger), anxiety: num(r.pre_anxiety), sleep: num(r.pre_sleep), stressSources: (r.pre_stress_sources || '').split('|').filter(Boolean) },
         post: { mood: num(r.post_mood) || 0, stress: num(r.post_stress) || 0, eff: num(r.post_eff) || 0 },
