@@ -2200,6 +2200,76 @@ async function fetchMyRecords() {
   return data.ok ? data.records : null;
 }
 
+// 端末のlocalStorageが揮発しても、QRの ?id= とトークンからサーバー上の
+// 同意・事前アンケート・日次記録を取り戻して state を復元する。
+// → 毎回の再同意・再回答が不要になり、振り返りに全履歴が出る。ゲート（ID/事前）も自動で通る。
+async function rehydrateFromServer(pid) {
+  if (!pid || !SYNC.token) return false;   // トークン無し＝配布URLから開いていない時は何もしない
+  const num = v => { if (v === '' || v == null) return null; const n = Number(v); return Number.isNaN(n) ? null : n; };
+  const get = async (kind) => {
+    try {
+      const url = SYNC.endpoint + '?token=' + encodeURIComponent(SYNC.token) + '&id=' + encodeURIComponent(pid) + '&kind=' + kind;
+      const res = await fetch(url);
+      const d = await res.json();
+      return (d && d.ok && Array.isArray(d.records)) ? d.records : [];
+    } catch (e) { console.warn('[rehydrate] ' + kind + ' 取得失敗:', e && e.message); return []; }
+  };
+  const results = await Promise.all([get('consent'), get('survey_pre'), get('daily')]);
+  const consentRows = results[0], preRows = results[1], dailyRows = results[2];
+  let restored = false;
+
+  // 同意（ID・ターム・メール）
+  if (consentRows.length && !(state.consent && state.consent.pid)) {
+    const c = consentRows[consentRows.length - 1];
+    state.consent = { pid: c.id || pid, term: c.term || '', email: c.email || '', date: c.agreedAt || c.submittedAt || '' };
+    restored = true;
+  }
+
+  // 事前アンケート（好みデータ prefs＝好み一致・発見的提案の前提）
+  if (preRows.length) {
+    const s = preRows[preRows.length - 1];
+    const prefs = {};
+    Object.keys(s).forEach(k => {
+      const mL = k.match(/^pref_(.+)_like$/); if (mL) { prefs[mL[1]] = prefs[mL[1]] || {}; prefs[mL[1]].like = num(s[k]); }
+      const mF = k.match(/^pref_(.+)_feas$/); if (mF) { prefs[mF[1]] = prefs[mF[1]] || {}; prefs[mF[1]].feas = num(s[k]); }
+    });
+    if (Object.keys(prefs).length) {
+      state.survey = state.survey || {};
+      if (!state.survey.prefs || !Object.keys(state.survey.prefs).length) state.survey.prefs = prefs;
+      if (!state.survey.age) state.survey.age = s.age || '';
+      if (!state.survey.gender) state.survey.gender = s.gender || '';
+      if (!state.survey.grade) state.survey.grade = s.grade || '';
+      if (!state.survey.submittedAt) state.survey.submittedAt = s.clientSubmittedAt || s.submittedAt || '';
+      restored = true;
+    }
+  }
+
+  // 日次記録（振り返りの実施日数・気分推移を復元。同じ日は最新1件・サーバー優先で端末分とマージ）
+  if (dailyRows.length) {
+    const byDay = {};
+    (state.records || []).forEach(r => { if (r && r.day) byDay[r.day] = r; });
+    dailyRows.forEach(r => {
+      const day = num(r.day); if (!day) return;
+      byDay[day] = {
+        day: day, date: r.date, phase: r.phase, term: r.term,
+        pre: { mood: num(r.pre_mood) || 0, stress: num(r.pre_stress) || 0, fatigue: num(r.pre_fatigue), anger: num(r.pre_anger), anxiety: num(r.pre_anxiety), sleep: num(r.pre_sleep), stressSources: (r.pre_stress_sources || '').split('|').filter(Boolean) },
+        post: { mood: num(r.post_mood) || 0, stress: num(r.post_stress) || 0, eff: num(r.post_eff) || 0 },
+        after5: { stress: num(r.after5_stress), pleasant: num(r.after5_pleasant) },
+        activity: r.activity || '', minutes: num(r.minutes),
+        bp_pre: { pulse: r.bp_pre_pulse, sys: r.bp_pre_sys, dia: r.bp_pre_dia },
+        bp_post: { pulse: r.bp_post_pulse, sys: r.bp_post_sys, dia: r.bp_post_dia },
+        bp_5min: { pulse: r.bp_5min_pulse, sys: r.bp_5min_sys, dia: r.bp_5min_dia },
+        memo: r.memo || ''
+      };
+    });
+    state.records = Object.keys(byDay).map(k => byDay[k]).sort((a, b) => (a.day || 0) - (b.day || 0));
+    restored = true;
+  }
+
+  if (restored) saveState();
+  return restored;
+}
+
 async function loadFromServer() {
   try {
     const recs = await fetchMyRecords();
@@ -2266,13 +2336,19 @@ function renderMoodLine(mountId, records) {
   mount.innerHTML = svg + `<div style="margin-top:6px;">${legend}</div>`;
 }
 
-showGraphs();   // 折れ線も初期描画
-
 // 初回アクセス（まだ参加者情報が未登録）なら「研究について」を自動で開く
 // 入口：未同意→研究について／同意済みで事前未回答→事前アンケート／事前済み→日次記録（今日のおすすめ・診断結果は参加者ナビから除外）
-if (!state.consent || !state.consent.pid) { showPage('about'); }
-else if (!hasSurveyPrefs()) { showPage('survey'); }
-else { showPage('daily'); }
+// ※端末が空でも、QRの ?id= とトークンがあればサーバーから復元してから振り分ける（毎回の再入力を防ぐ）。
+(async function initEntry() {
+  const urlId = new URLSearchParams(location.search).get('id');
+  if (urlId && !(state.consent && state.consent.pid)) {
+    try { await rehydrateFromServer(urlId); } catch (e) { console.warn('[initEntry] rehydrate失敗:', e && e.message); }
+  }
+  showGraphs();   // 復元後の記録で折れ線・実施日数を描画
+  if (!state.consent || !state.consent.pid) { showPage('about'); }
+  else if (!hasSurveyPrefs()) { showPage('survey'); }
+  else { showPage('daily'); }
+})();
 </script>
 
 <!-- ====================================================================
