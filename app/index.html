@@ -2344,6 +2344,9 @@ function renderMoodLine(mountId, records) {
   if (urlId && !(state.consent && state.consent.pid)) {
     try { await rehydrateFromServer(urlId); } catch (e) { console.warn('[initEntry] rehydrate失敗:', e && e.message); }
   }
+  // 復元後はヘッダー（Day・フェーズ・参加者ID・リマインド）と未完了バッジを最新化してから描画・振り分け
+  if (state.consent && state.consent.pid) { try { updateDayPill(); } catch (e) {} }
+  try { updatePrereqBanner(); } catch (e) {}
   showGraphs();   // 復元後の記録で折れ線・実施日数を描画
   if (!state.consent || !state.consent.pid) { showPage('about'); }
   else if (!hasSurveyPrefs()) { showPage('survey'); }
