@@ -420,6 +420,8 @@ main, .page, .wiz, .card, .wiz-slot { max-width: 100%; }
 <h2 id="homeDate">本日の予報</h2>
 <p class="lead" id="homeMessage">「ココロ予報をする」を押すと、いまの気分やストレスを1問ずつ答えて、今日のおすすめが表示されます。</p>
 
+<div id="prereqBanner" style="display:none; background:rgba(220,80,80,0.12); border:1px solid rgba(220,80,80,0.45); color:#8a1f1f; padding:0.6rem 0.8rem; border-radius:10px; font-size:0.9rem; margin:0.5rem 0 0; line-height:1.5;"></div>
+
 <div class="reminder-card" id="reminderPanel">
 <b>本日のリマインド</b>
 <p class="note" id="reminderText" style="margin:0.25rem 0 0;">Day 2〜14は毎日17時に研究代表者からBCC一斉送信でリマインドします。</p>
@@ -938,7 +940,24 @@ function showPage(id) {
   const tgt = document.querySelector(`.main-nav button[data-page="${id}"]`);
   if (tgt) tgt.classList.add('active');
   if (id === 'graphs') showGraphs();
+  if (id === 'home') updatePrereqBanner();
   window.scrollTo({top: 0, behavior:'smooth'});
+}
+
+// ホーム上部の未完了バッジ（①ID ②事前アンケート）を最新化する。
+function updatePrereqBanner() {
+  const el = document.getElementById('prereqBanner');
+  if (!el) return;
+  const msgs = [];
+  if (!(state.consent && state.consent.pid)) {
+    msgs.push('①「同意・参加者情報」で参加者IDの入力が未完了です。');
+  }
+  if (!hasSurveyPrefs()) {
+    msgs.push('②「事前アンケート」が未回答です。回答すると発見的・好み一致の提案が受け取れます。');
+  }
+  if (!msgs.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = 'block';
+  el.innerHTML = '<b>未完了の項目があります</b><br>' + msgs.join('<br>');
 }
 
 function resetAll() {
@@ -1124,6 +1143,12 @@ function initSurvey() {
 }
 
 function submitPostSurvey() {
+  // 前提ゲート：参加者ID未入力では事後アンケートを送信させない（NOID衝突の防止）
+  if (!(state.consent && state.consent.pid)) {
+    alert('先に「同意・参加者情報」で参加者IDを入力してください。');
+    showPage('consent');
+    return;
+  }
   const collect = (prefix, n) => {
     const out = {};
     for (let i = 1; i <= n; i++) {
@@ -1257,13 +1282,30 @@ function showResultPage() {
 // ============================================================
 // 提案ロジック（v0.7準拠）
 // ============================================================
+// T2 参加者名簿（説明会で配布した固定ID）。同意ページの「実施ターム」プルダウン初期値がT1のため、
+// T2の人がT1のまま同意すると6/29起点でDay15/final・term=T1と誤算出される事故が起きる。
+// → IDが名簿にあれば、同意設定に関わらずT2として扱い（名簿優先で吸収）。T1名簿とID重複なし。
+const T2_ROSTER = new Set([
+  'P011','P012','P013','P014','P015','P016','P017','P018','P019','P020',
+  'P021','P022','P023','P024','P025','P026','P027','P028','P029','P030',
+  'P031','P033','P037','P074','P075','P078'
+]);
 function getParticipantTerm() {
+  const pid = state.consent && state.consent.pid;
+  if (pid && T2_ROSTER.has(pid)) return 'T2';   // 名簿でT2の人は同意設定に関わらずT2扱い
   return (state.consent && state.consent.term) || 'T1';
 }
 
+// 事前アンケートを実際に回答済みか（好みデータprefsが存在するか）。
+// ※ generateSuggestion がデモ用に state.survey={prefs:{}} を入れることがあるため、
+//   「survey が存在する」ではなく「prefs が1件以上ある」で判定する。
+function hasSurveyPrefs() {
+  return !!(state.survey && state.survey.prefs && Object.keys(state.survey.prefs).length > 0);
+}
+
 // 各タームの配布日（Day 1）。この日を起点に Day をカレンダーで算出する。
-// ※ T2 はターム開始時に実日付を追記すること（未設定なら同意日を起点にフォールバック）。
-const TERM_START = { T1: '2026-06-29' };
+// T1=6/29起点、T2=7/13起点（説明会=全員Day1）でカレンダー固定＝コホートのDay番号がそろう。
+const TERM_START = { T1: '2026-06-29', T2: '2026-07-13' };
 // 翌日モードへの切替時刻（時）。0時ちょうどだと記録中に日付が変わる事故が起きるため午前4時に設定。
 // → 深夜0:00〜3:59の記録は前日扱い（救済）／新モードは早朝4:00から（17時の記録窓に余裕で間に合う）。
 const DAY_ROLLOVER_HOUR = 4;
@@ -1310,6 +1352,19 @@ function generateSuggestion() {
   const term = getParticipantTerm();
   state.day = computeDay();
   const phase = getCurrentPhase(state.day);
+
+  // --- 前提ゲート：好み一致・発見的は事前アンケートの好みデータが必須。
+  //     未回答のまま乱数提案を出すと壊れる／意味がないため、提案を出さず事前アンケートへ誘導する。
+  if ((phase === 'match' || phase === 'extend') && !hasSurveyPrefs()) {
+    document.getElementById('phaseTag').textContent = `フェーズ: ${PHASE_LABEL[phase]}`;
+    state.currentSuggestion = null;
+    saveState();
+    document.getElementById('suggestionCard').style.display = 'none';
+    alert('本日の提案には「事前アンケート」の回答が必要です。まだ回答されていないため、先に事前アンケートにご回答ください。');
+    showPage('survey');
+    return;
+  }
+
   const mood = rv('homeMood', 0);
   const stress = rv('homeStress', 3);
   const fatigue = rv('homeFatigue', 3);
@@ -1437,6 +1492,21 @@ function summarizePanas(panas) {
 }
 
 async function submitDaily() {
+  // --- 前提ゲート①：参加者ID未入力では記録させない（id=NOID衝突・上書き事故の防止）---
+  if (!(state.consent && state.consent.pid)) {
+    alert('先に「同意・参加者情報」で参加者IDを入力してください。IDがないと記録を本人に紐付けできません。');
+    showPage('consent');
+    return;
+  }
+  // --- 前提ゲート②：好み一致・発見的の日は事前アンケート必須（未回答なら記録させず誘導）---
+  {
+    const _ph = getCurrentPhase(computeDay());
+    if ((_ph === 'match' || _ph === 'extend') && !hasSurveyPrefs()) {
+      alert('本日は「事前アンケート」の回答が必要な提案日です。未回答のため記録できません。先に事前アンケートにご回答ください。');
+      showPage('survey');
+      return;
+    }
+  }
   if (window._dailySubmitInProgress) return;
   window._dailySubmitInProgress = true;
   try {
@@ -2201,7 +2271,7 @@ showGraphs();   // 折れ線も初期描画
 // 初回アクセス（まだ参加者情報が未登録）なら「研究について」を自動で開く
 // 入口：未同意→研究について／同意済みで事前未回答→事前アンケート／事前済み→日次記録（今日のおすすめ・診断結果は参加者ナビから除外）
 if (!state.consent || !state.consent.pid) { showPage('about'); }
-else if (!state.survey) { showPage('survey'); }
+else if (!hasSurveyPrefs()) { showPage('survey'); }
 else { showPage('daily'); }
 </script>
 
