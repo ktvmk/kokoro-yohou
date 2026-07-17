@@ -1324,11 +1324,22 @@ function computeDay() {
 function getCurrentPhase(day) {
   const term = getParticipantTerm();
   if (day === 1) return 'prep';
-  // 案B（2026-07-02 先生決定）：初日6/30の不具合を受け自由選択をDay5(7/3)まで延長。
-  // 中継日(旧Day8)を廃止して終了日Day15(7/13)は当初案内のまま維持。
+  if (term === 'T2') {
+    // T2：説明会で配布した予定どおり各フェーズ3日ブロック。
+    // 自由選択7/14-16(D2-4)／発見的7/17-19(D5-7)／中継7/20(D8・お休み)／
+    // 好み一致7/21-23(D9-11)／状態依存7/24-26(D12-14)／最終7/27(D15)
+    if (day >= 2 && day <= 4) return 'self';
+    if (day >= 5 && day <= 7) return 'extend';
+    if (day === 8) return 'rest';
+    if (day >= 9 && day <= 11) return 'match';
+    if (day >= 12 && day <= 14) return 'flexible';
+    if (day === 15) return 'final';
+    return 'done';
+  }
+  // T1（終了済み・案B維持：2026-07-02 初日不具合対応で自由選択をDay5まで延長・中継日廃止）
   if (day >= 2 && day <= 5) return 'self';
-  if (day >= 6 && day <= 8) return term === 'T2' ? 'extend' : 'match';
-  if (day >= 9 && day <= 11) return term === 'T2' ? 'match' : 'extend';
+  if (day >= 6 && day <= 8) return 'match';
+  if (day >= 9 && day <= 11) return 'extend';
   if (day >= 12 && day <= 14) return 'flexible';
   if (day === 15) return 'final';
   return 'done';
